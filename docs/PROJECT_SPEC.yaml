@@ -1,0 +1,169 @@
+# SpeakIQ AI Coach - master project specification.
+# Durable source of truth for all milestones. Supplied by the project owner on 2026-10-11.
+#
+# NOTE ON THE `milestones` SECTION: the owner's pasted specification was cut off part-way
+# through milestone 1 (the text ended at `- "Save`). Everything above `milestones` is the
+# owner's text verbatim. Milestones 1 and 2 below were reconstructed from the owner's
+# separate Milestone 1 and Milestone 2 build prompts. Milestones after 2 were not received
+# and must be added by the owner; do not invent them.
+
+project:
+  name: "SpeakIQ AI Coach"
+  slug: "speakiq-ai-coach"
+  purpose: "Evidence-first speech delivery analysis with temporally grounded explanations."
+  target_track: "Contrastive Speech Analytics & Temporal Flaw Grounding"
+  product_type: "Web application"
+  principles:
+    - "Every detected flaw must be tied to a specific audio interval."
+    - "Distinguish measured facts, inferred explanations, and unavailable evidence."
+    - "Never invent analysis metrics or pretend demo data is live."
+    - "Make processing reproducible and explain limitations."
+    - "Provide a useful fallback when optional models or WebGL are unavailable."
+
+requirements:
+  dataset:
+    - "Create paired baseline and intentionally flawed speech examples using the same transcript."
+    - "Represent multiple flaw types and a severity gradient from poor to near-perfect delivery."
+    - "Store transcripts, metadata, labels, and temporal intervals with the audio."
+    - "Prefer a small, well-labelled, reproducible dataset over a large, unreliable one."
+    - "Document dataset provenance, generation procedures, licensing, and limitations."
+  audio_analysis:
+    - "Extract waveform and spectral features using appropriate signal-processing libraries."
+    - "Support MFCCs, pitch/F0 contours, speech rate, pause intervals, energy, and clarity proxies where available."
+    - "Use forced alignment to associate transcript words with audio timestamps when supported."
+    - "Normalize speaker-dependent pitch and energy carefully."
+    - "Do not claim a metric was measured if the pipeline did not calculate it."
+  temporal_grounding:
+    - "Produce flaw intervals with start and end times."
+    - "Compare participant delivery against a suitable baseline."
+    - "Associate each explanation with the measured features and reference comparison that support it."
+    - "Clearly identify low-confidence results and missing alignment."
+  dashboard:
+    - "Provide audio and transcript upload."
+    - "Show audio playback, waveform, and timeline."
+    - "Show baseline-versus-participant feature comparisons."
+    - "Highlight temporally grounded flaw intervals."
+    - "Show the evidence, severity, confidence, and limitations for each finding."
+    - "Include an accessible 2D fallback for every essential WebGL visualization."
+  coach:
+    - "Provide actionable, evidence-backed speech coaching."
+    - "Use measured analysis and rubric retrieval when generating feedback."
+    - "Provide a deterministic rule-based fallback when an optional language-model API is unavailable."
+    - "Never generate unsupported causal claims."
+  visualization:
+    - "Use a professional, premium dark interface with restrained green accents."
+    - "Use React, Three.js, and React Three Fiber for a data-driven 3D Acoustic Twin where appropriate."
+    - "Use supplied sample data for demonstrations; never invent live metrics."
+    - "Include keyboard accessibility, visible focus states, responsive layouts, and reduced-motion support."
+
+technology:
+  frontend:
+    - "React"
+    - "Vite"
+    - "TypeScript"
+    - "Tailwind CSS"
+    - "React Router"
+    - "TanStack Query where useful"
+    - "WaveSurfer.js"
+    - "Recharts"
+    - "Three.js"
+    - "@react-three/fiber"
+    - "@react-three/drei"
+  backend:
+    - "Python"
+    - "FastAPI"
+    - "Pydantic"
+    - "NumPy"
+    - "SciPy"
+    - "librosa"
+    - "Parselmouth where appropriate"
+    - "faster-whisper or a compatible transcription option"
+    - "A compatible forced-alignment implementation"
+  testing:
+    frontend:
+      - "Vitest"
+      - "React Testing Library"
+      - "Playwright for essential end-to-end checks"
+    backend:
+      - "pytest"
+  persistence:
+    default: "Local development and documented sample data first"
+    optional: "Supabase when persistence or authentication is actually implemented"
+  hosting:
+    frontend: "Vercel or another compatible host"
+    backend: "Render or another compatible host"
+  external_services:
+    - "No paid API is required to begin development."
+    - "Do not block local development while waiting for optional API credentials."
+    - "Do not introduce NVIDIA or Nebius integrations unless explicitly required by this project's actual track."
+
+architecture:
+  frontend_directory: "frontend/"
+  backend_directory: "backend/"
+  documentation_directory: "docs/"
+  dataset_directory: "data/"
+  frontend_responsibilities:
+    - "Accessible upload and playback"
+    - "Timeline and comparison visualizations"
+    - "Evidence presentation"
+    - "3D visualization with a 2D fallback"
+  backend_responsibilities:
+    - "Input validation"
+    - "Audio preprocessing"
+    - "Feature extraction"
+    - "Transcription and alignment adapters"
+    - "Contrastive analysis"
+    - "Evidence-backed explanations"
+  api:
+    - "Health endpoint"
+    - "Analysis endpoint"
+    - "Results endpoint or documented synchronous equivalent"
+    - "Dataset/sample endpoint if required"
+  data_contract:
+    - "Use explicit types and schemas."
+    - "Represent time in seconds."
+    - "Validate interval start and end values."
+    - "Include evidence, confidence, and limitations where applicable."
+    - "Mark sample/demo data clearly."
+
+security:
+  - "Keep `.env` files ignored by Git."
+  - "Commit only placeholder values in `.env.example`."
+  - "Never put secret keys in frontend environment variables or client bundles."
+  - "Never expose Supabase secret/service-role credentials to the browser."
+  - "Validate uploaded file type, size, and processing limits."
+  - "Do not log secrets or unnecessarily retain uploaded audio."
+  - "Use optional external APIs only when configured."
+  - "Never fabricate credentials, test results, deployments, or API responses."
+
+milestones:
+  - id: 1
+    name: "Repository foundation and specification"
+    source: "Reconstructed from the owner's Milestone 1 build prompt (pasted spec was truncated here)."
+    tasks:
+      - "Save the complete master specification to docs/PROJECT_SPEC.yaml."
+      - "Create or update CLAUDE.md with the project instructions and Git safety policy."
+      - "Create a secure .gitignore and a .env.example containing placeholders only."
+      - "Create the frontend/ React + Vite + TypeScript application."
+      - "Create the backend/ Python + FastAPI application."
+      - "Add a working GET /health endpoint."
+      - "Add basic frontend and backend tests."
+      - "Add a README explaining installation, environment setup and local development."
+      - "Do not require paid API keys. Do not connect Supabase, an LLM provider, NVIDIA, Nebius, Vercel or Render yet."
+      - "Install dependencies, run tests and production builds, inspect the Git diff, and fix issues."
+  - id: 2
+    name: "Frontend experience with demo fixtures"
+    source: "Reconstructed from the owner's Milestone 2 build prompt."
+    tasks:
+      - "A professional landing page explaining the product."
+      - "A workspace for uploading audio and entering transcripts."
+      - "An analysis dashboard with waveform, finding-list and chart placeholders."
+      - "An Acoustic Twin visualization using Three.js, React Three Fiber and Drei, displaying supplied sample data, with a useful 2D fallback when WebGL is unavailable."
+      - "An Evidence Coach page or panel."
+      - "A reports page or report-preview view."
+      - "Navigation, reusable components, loading states, empty states and error states."
+      - "Premium dark theme with restrained green accents, strong typography, consistent spacing, subtle motion, keyboard accessibility and visible focus states."
+      - "Use clearly labelled demo fixtures until the real backend is connected."
+      - "Add frontend tests and verify the production build."
+      - "Do not add paid services or API keys."
+  # Milestones 3 and later: not yet supplied by the owner.
