@@ -1,13 +1,27 @@
-import { HealthStatus } from './components/HealthStatus'
+import { lazy } from 'react'
+import { Route, Routes } from 'react-router-dom'
+import { Layout } from './components/Layout'
+import Landing from './pages/Landing'
+import NotFound from './pages/NotFound'
+
+const Workspace = lazy(() => import('./pages/Workspace'))
+const Dashboard = lazy(() => import('./pages/Dashboard'))
+const Twin = lazy(() => import('./pages/Twin'))
+const Coach = lazy(() => import('./pages/Coach'))
+const Reports = lazy(() => import('./pages/Reports'))
 
 export default function App() {
   return (
-    <main className="mx-auto flex min-h-screen max-w-2xl flex-col justify-center gap-4 px-6">
-      <h1 className="text-4xl font-semibold tracking-tight">SpeakIQ AI Coach</h1>
-      <p className="text-zinc-400">
-        Evidence-first speech delivery analysis with temporally grounded explanations.
-      </p>
-      <HealthStatus />
-    </main>
+    <Routes>
+      <Route element={<Layout />}>
+        <Route index element={<Landing />} />
+        <Route path="workspace" element={<Workspace />} />
+        <Route path="dashboard" element={<Dashboard />} />
+        <Route path="twin" element={<Twin />} />
+        <Route path="coach" element={<Coach />} />
+        <Route path="reports" element={<Reports />} />
+        <Route path="*" element={<NotFound />} />
+      </Route>
+    </Routes>
   )
 }

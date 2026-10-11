@@ -9,9 +9,15 @@ The full specification lives in [`docs/PROJECT_SPEC.yaml`](docs/PROJECT_SPEC.yam
 | Area | State |
 | --- | --- |
 | Backend `GET /health` | Working |
-| Frontend app shell | Working |
-| Audio analysis, transcription, alignment | Not implemented yet |
-| Supabase, LLM provider, hosting | Not connected |
+| Frontend pages: landing, workspace, dashboard, Acoustic Twin, Evidence Coach, reports | Working |
+| Audio file validation, playback and waveform in the workspace | Working, in the browser only (nothing is uploaded) |
+| Acoustic Twin 3D view with 2D fallback and data table | Working, showing the demo fixture |
+| Findings, charts, coaching text and report content | **Demo fixture** (`frontend/src/fixtures/demoAnalysis.ts`), not computed from audio |
+| Audio analysis, transcription, alignment, analysis API | Not implemented yet |
+| Free-form coach questions, language model | Not implemented yet |
+| Supabase, hosting | Not connected |
+
+Every view that shows fixture data carries a "Demo data — not a real analysis" label.
 
 No paid API keys are needed to run the project locally.
 
@@ -71,7 +77,8 @@ npm run dev
 ```
 
 - App: http://localhost:5173
-- Tests: `npm test`
+- Unit and component tests: `npm test`
 - Production build: `npm run build` (output in `frontend/dist/`)
+- End-to-end tests: `npm run test:e2e` (builds, then drives the installed Microsoft Edge with Playwright; set `PW_CHANNEL=chrome` to use Chrome)
 
 Run the backend and the frontend in two separate terminals. The frontend shows whether it can reach the backend.

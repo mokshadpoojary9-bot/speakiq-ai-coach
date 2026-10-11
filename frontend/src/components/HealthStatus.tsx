@@ -21,7 +21,7 @@ export function HealthStatus() {
   }, [])
 
   const dot =
-    state.kind === 'online' ? 'bg-emerald-400' : state.kind === 'offline' ? 'bg-amber-400' : 'bg-zinc-500'
+    state.kind === 'online' ? 'bg-accent' : state.kind === 'offline' ? 'bg-warn' : 'bg-muted'
   const text =
     state.kind === 'online'
       ? `Backend online (v${state.health.version})`
@@ -30,7 +30,7 @@ export function HealthStatus() {
         : 'Checking backend…'
 
   return (
-    <span role="status" className="inline-flex items-center gap-2 text-xs text-zinc-400">
+    <span role="status" className="inline-flex items-center gap-2 text-xs text-muted">
       <span aria-hidden="true" className={`h-2 w-2 rounded-full ${dot}`} />
       {text}
     </span>

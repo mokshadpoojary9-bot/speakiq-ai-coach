@@ -24,6 +24,8 @@ SpeakIQ AI Coach — evidence-first speech delivery analysis with temporally gro
 - `docs/` — specification and documentation
 - `data/` — dataset (not created yet)
 
+All analysis shown in the frontend currently comes from `frontend/src/fixtures/demoAnalysis.ts`. It is hand-authored demo data; keep `isDemo: true` and the `DemoBadge` on every view that uses it until the backend supplies real results.
+
 ## Commands
 
 Frontend (run from `frontend/`):
@@ -32,6 +34,7 @@ Frontend (run from `frontend/`):
 - `npm run dev` — dev server on http://localhost:5173
 - `npm test` — Vitest
 - `npm run build` — type-check and production build
+- `npm run test:e2e` — build, then Playwright against installed Edge (verifies the real WebGL scene)
 
 Backend (run from `backend/`, PowerShell):
 
