@@ -147,3 +147,40 @@ vite.config.ts.timestamp-*
 
 # Turbo Repo
 .turbo
+
+# --- SpeakIQ AI Coach ---
+
+# Secrets and local configuration (see .env.example)
+*.pem
+*.key
+secrets.*
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+*.egg-info/
+.coverage
+htmlcov/
+
+# Uploaded or generated audio must not be committed by accident
+backend/uploads/
+backend/.data/
+tmp/
+
+# Playwright
+test-results/
+playwright-report/
+
+# Editors and OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Claude Code local settings
+.claude/settings.local.json
