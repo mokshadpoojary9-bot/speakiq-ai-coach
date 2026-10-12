@@ -23,6 +23,7 @@ SpeakIQ AI Coach — evidence-first speech delivery analysis with temporally gro
 - `backend/` — Python + FastAPI
 - `docs/` — specification and documentation
 - `data/` — dataset (not created yet)
+- `backend/app/audio/` — real feature extraction (`loading`, `features`, `pitch`, `timing`, `pipeline`, `schemas`), served by `POST /analysis/features`. Each metric reports `status` (`measured` / `estimated` / `unavailable`), `method` and `limitations`; keep that contract for new metrics. The frontend does not call this endpoint yet.
 
 All analysis shown in the frontend currently comes from `frontend/src/fixtures/demoAnalysis.ts`. It is hand-authored demo data; keep `isDemo: true` and the `DemoBadge` on every view that uses it until the backend supplies real results.
 

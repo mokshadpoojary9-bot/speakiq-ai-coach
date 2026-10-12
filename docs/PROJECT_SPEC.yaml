@@ -4,8 +4,9 @@
 # NOTE ON THE `milestones` SECTION: the owner's pasted specification was cut off part-way
 # through milestone 1 (the text ended at `- "Save`). Everything above `milestones` is the
 # owner's text verbatim. Milestones 1 and 2 below were reconstructed from the owner's
-# separate Milestone 1 and Milestone 2 build prompts. Milestones after 2 were not received
-# and must be added by the owner; do not invent them.
+# separate Milestone 1 and Milestone 2 build prompts. Milestone 3 is recorded as far as its
+# (also truncated) build prompt went. Later milestones were not received and must be added
+# by the owner; do not invent them.
 
 project:
   name: "SpeakIQ AI Coach"
@@ -166,4 +167,17 @@ milestones:
       - "Use clearly labelled demo fixtures until the real backend is connected."
       - "Add frontend tests and verify the production build."
       - "Do not add paid services or API keys."
-  # Milestones 3 and later: not yet supplied by the owner.
+  - id: 3
+    name: "Real audio feature extraction"
+    source: "From the owner's Milestone 3 build prompt, which was cut off part-way through item 7 of the feature list. Only the received items are recorded; later items and sections were not received."
+    tasks:
+      - "Create a modular audio-analysis service in the existing Python backend using appropriate compatible libraries, such as NumPy, SciPy, librosa, and Parselmouth."
+      - "For supported audio uploads, calculate actual measurements where technically appropriate."
+      - "Audio duration and sample rate."
+      - "Waveform and frame-level amplitude or energy."
+      - "Short-time Fourier transform (STFT) and spectral features."
+      - "Mel-frequency cepstral coefficients (MFCCs)."
+      - "Fundamental frequency (F0) and pitch contours."
+      - "Silence and pause intervals."
+      - "Speaking-rate estimates, clearly [text cut off here]"
+  # Milestones 4 and later: not yet supplied by the owner.

@@ -23,6 +23,12 @@ class Settings:
     cors_origins: list[str] = field(
         default_factory=lambda: _split_csv(os.getenv("BACKEND_CORS_ORIGINS", DEFAULT_CORS_ORIGINS))
     )
+    max_upload_mb: float = field(default_factory=lambda: float(os.getenv("MAX_UPLOAD_MB", "25")))
+    max_audio_seconds: float = field(default_factory=lambda: float(os.getenv("MAX_AUDIO_SECONDS", "300")))
+
+    @property
+    def max_upload_bytes(self) -> int:
+        return int(self.max_upload_mb * 1024 * 1024)
 
 
 def get_settings() -> Settings:
