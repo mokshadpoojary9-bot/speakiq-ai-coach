@@ -1,0 +1,496 @@
+{
+  "schema_version": "1.0.0",
+  "dataset_name": "speakiq-contrastive-examples",
+  "dataset_version": "1.0.0",
+  "description": "Compact example subset of the SpeakIQ contrastive dataset: one speaker, the reference and the most strongly altered sample of each covered flaw category. For inspection and tests, not for training or evaluation.",
+  "license": "Audio: derived from LibriVox public-domain recordings distributed in LibriSpeech (CC BY 4.0). Metadata: CC BY 4.0.",
+  "built_with": "speakiq-ai-coach backend 0.1.0",
+  "seed": 20261013,
+  "audio_format": "FLAC, 16-bit PCM, mono, 16000 Hz",
+  "flaw_categories_covered": [
+    "excessive_pauses",
+    "rushed_delivery",
+    "slow_delivery",
+    "uneven_pacing",
+    "pitch_monotony",
+    "unclear_articulation"
+  ],
+  "flaw_categories_not_covered": {
+    "filler_words": "No samples. Fillers such as 'um' cannot be created by transforming a recording that does not contain them, and no licensed recordings with fillers or licensed speech synthesis were available."
+  },
+  "sources": [
+    {
+      "source_id": "librispeech-5703-47212-0000",
+      "speaker_id": "librispeech-speaker-5703",
+      "speaker_kind": "human",
+      "audio_path": "5703-47212-0000.ogg",
+      "sha256": "a284612b46af0535f7e1873758c4387bb8369f6dbbe192ffdec1f171108f98dd",
+      "origin": "LibriSpeech utterance, originally a LibriVox volunteer recording; obtained as a librosa example file",
+      "description": "The Ashiel Mystery: A Detective Story, chapter XVI. / Read by Garth Comira",
+      "license": "Public domain (LibriVox recording); distributed in the LibriSpeech corpus under CC BY 4.0",
+      "attribution": "LibriVox volunteers; LibriSpeech ASR corpus (Panayotov, Chen, Povey, Khudanpur, 2015); example file distributed by the librosa project",
+      "url": "https://librosa.org/data/audio/5703-47212-0000.ogg",
+      "transcript": "With her white paint and her scarlet smoke stack, the inverse shield, one of the two small steamers that during the summer months, applied up and down the lock, and incidentally carried down communication between inverse shield and cryon.",
+      "transcript_provenance": "automatic_asr_unverified",
+      "transcript_tool": "faster-whisper, model 'base', language 'en'",
+      "notes": "Transcript is unedited speech-recognition output and contains recognition errors."
+    }
+  ],
+  "pairs": [
+    {
+      "pair_id": "pair-librispeech-5703-47212-0000",
+      "source_id": "librispeech-5703-47212-0000",
+      "reference_sample_id": "librispeech-5703-47212-0000__reference",
+      "transcript": "With her white paint and her scarlet smoke stack, the inverse shield, one of the two small steamers that during the summer months, applied up and down the lock, and incidentally carried down communication between inverse shield and cryon."
+    }
+  ],
+  "samples": [
+    {
+      "sample_id": "librispeech-5703-47212-0000__reference",
+      "pair_id": "pair-librispeech-5703-47212-0000",
+      "source_id": "librispeech-5703-47212-0000",
+      "speaker_id": "librispeech-speaker-5703",
+      "audio_path": "audio/pair-librispeech-5703-47212-0000/librispeech-5703-47212-0000__reference.flac",
+      "reference_audio_path": "audio/pair-librispeech-5703-47212-0000/librispeech-5703-47212-0000__reference.flac",
+      "sha256": "5d4943510678049f3813d60c632a52541d554546db755b6fde989add20559bc8",
+      "duration_sec": 14.84,
+      "sample_rate_hz": 16000,
+      "transcript": "With her white paint and her scarlet smoke stack, the inverse shield, one of the two small steamers that during the summer months, applied up and down the lock, and incidentally carried down communication between inverse shield and cryon.",
+      "transcript_differs_from_reference": false,
+      "transcript_difference_note": "",
+      "delivery_condition": "reference",
+      "data_origin": "real_recording",
+      "flaw_category": null,
+      "severity": "none",
+      "severity_rank": 0,
+      "flaw_intervals": [],
+      "generation": {
+        "method": "format_conversion",
+        "parameters": {
+          "from_sample_rate_hz": 22050,
+          "to_sample_rate_hz": 16000
+        },
+        "tool": "libsndfile, scipy.signal.resample_poly"
+      },
+      "annotation": {
+        "label_provenance": "generated_by_construction",
+        "label_support": null,
+        "annotator": null,
+        "notes": "Used as the reference because it is the unaltered source. Its delivery quality has not been rated by anyone."
+      },
+      "measured": {
+        "provenance": "automatic_estimate",
+        "tool": "speakiq-ai-coach backend 0.1.0",
+        "pitch_median_hz": 83.1,
+        "pitch_range_semitones": 8.19,
+        "total_silence_sec": 2.14,
+        "internal_pause_count": 4,
+        "syllable_rate_estimate_per_sec": 2.02,
+        "spectral_centroid_hz": 949.7,
+        "peak_amplitude": 0.8029,
+        "support_check": null
+      },
+      "split": "train"
+    },
+    {
+      "sample_id": "librispeech-5703-47212-0000__excessive_pauses__severe",
+      "pair_id": "pair-librispeech-5703-47212-0000",
+      "source_id": "librispeech-5703-47212-0000",
+      "speaker_id": "librispeech-speaker-5703",
+      "audio_path": "audio/pair-librispeech-5703-47212-0000/librispeech-5703-47212-0000__excessive_pauses__severe.flac",
+      "reference_audio_path": "audio/pair-librispeech-5703-47212-0000/librispeech-5703-47212-0000__reference.flac",
+      "sha256": "3d6d71dba83ce3c0b7366f2a2ff0f7626268a91af94d70b762c605b71fcba682",
+      "duration_sec": 20.24,
+      "sample_rate_hz": 16000,
+      "transcript": "With her white paint and her scarlet smoke stack, the inverse shield, one of the two small steamers that during the summer months, applied up and down the lock, and incidentally carried down communication between inverse shield and cryon.",
+      "transcript_differs_from_reference": false,
+      "transcript_difference_note": "",
+      "delivery_condition": "flawed",
+      "data_origin": "transformed_real",
+      "flaw_category": "excessive_pauses",
+      "severity": "severe",
+      "severity_rank": 4,
+      "flaw_intervals": [
+        {
+          "start": 4.63,
+          "end": 6.43,
+          "label": "inserted_pause",
+          "detail": "1.80 s of digital silence inserted at 4.63 s of the reference"
+        },
+        {
+          "start": 10.0,
+          "end": 11.8,
+          "label": "inserted_pause",
+          "detail": "1.80 s of digital silence inserted at 8.20 s of the reference"
+        },
+        {
+          "start": 13.56,
+          "end": 15.36,
+          "label": "inserted_pause",
+          "detail": "1.80 s of digital silence inserted at 9.96 s of the reference"
+        }
+      ],
+      "generation": {
+        "method": "insert_silence",
+        "parameters": {
+          "pause_sec": 1.8,
+          "requested_count": 3,
+          "inserted_count": 3
+        },
+        "tool": "numpy"
+      },
+      "annotation": {
+        "label_provenance": "generated_by_construction",
+        "label_support": "by_construction",
+        "annotator": null,
+        "notes": "Silence was inserted by the build, so the pause intervals are exact."
+      },
+      "measured": {
+        "provenance": "automatic_estimate",
+        "tool": "speakiq-ai-coach backend 0.1.0",
+        "pitch_median_hz": 83.1,
+        "pitch_range_semitones": 8.19,
+        "total_silence_sec": 7.54,
+        "internal_pause_count": 4,
+        "syllable_rate_estimate_per_sec": 1.48,
+        "spectral_centroid_hz": 949.7,
+        "peak_amplitude": 0.8029,
+        "support_check": {
+          "metric": "total_silence_sec",
+          "reference_value": 2.14,
+          "sample_value": 7.54,
+          "expectation": "detected silence rises by at least 60% of the 5.40 s inserted",
+          "supported": true
+        }
+      },
+      "split": "train"
+    },
+    {
+      "sample_id": "librispeech-5703-47212-0000__rushed_delivery__severe",
+      "pair_id": "pair-librispeech-5703-47212-0000",
+      "source_id": "librispeech-5703-47212-0000",
+      "speaker_id": "librispeech-speaker-5703",
+      "audio_path": "audio/pair-librispeech-5703-47212-0000/librispeech-5703-47212-0000__rushed_delivery__severe.flac",
+      "reference_audio_path": "audio/pair-librispeech-5703-47212-0000/librispeech-5703-47212-0000__reference.flac",
+      "sha256": "ca58cc1d20296bd4509711a412c032f17495924f5edb3f0c136593eef2a62ec0",
+      "duration_sec": 9.646,
+      "sample_rate_hz": 16000,
+      "transcript": "With her white paint and her scarlet smoke stack, the inverse shield, one of the two small steamers that during the summer months, applied up and down the lock, and incidentally carried down communication between inverse shield and cryon.",
+      "transcript_differs_from_reference": false,
+      "transcript_difference_note": "",
+      "delivery_condition": "flawed",
+      "data_origin": "transformed_real",
+      "flaw_category": "rushed_delivery",
+      "severity": "severe",
+      "severity_rank": 4,
+      "flaw_intervals": [
+        {
+          "start": 0.0,
+          "end": 9.646,
+          "label": "sped_up",
+          "detail": "whole recording at 0.65x the reference duration"
+        }
+      ],
+      "generation": {
+        "method": "time_stretch_psola",
+        "parameters": {
+          "duration_factor": 0.65
+        },
+        "tool": "praat-parselmouth"
+      },
+      "annotation": {
+        "label_provenance": "generated_by_construction",
+        "label_support": "by_construction",
+        "annotator": null,
+        "notes": "The whole recording was time-compressed. Natural rushed speech also changes articulation and pausing, which this does not reproduce."
+      },
+      "measured": {
+        "provenance": "automatic_estimate",
+        "tool": "speakiq-ai-coach backend 0.1.0",
+        "pitch_median_hz": 88.8,
+        "pitch_range_semitones": 8.41,
+        "total_silence_sec": 1.04,
+        "internal_pause_count": 3,
+        "syllable_rate_estimate_per_sec": 4.15,
+        "spectral_centroid_hz": 926.2,
+        "peak_amplitude": 0.8029,
+        "support_check": {
+          "metric": "duration_sec",
+          "reference_value": 14.84,
+          "sample_value": 9.646,
+          "expectation": "duration is within 3% of 0.65x the reference",
+          "supported": true
+        }
+      },
+      "split": "train"
+    },
+    {
+      "sample_id": "librispeech-5703-47212-0000__slow_delivery__severe",
+      "pair_id": "pair-librispeech-5703-47212-0000",
+      "source_id": "librispeech-5703-47212-0000",
+      "speaker_id": "librispeech-speaker-5703",
+      "audio_path": "audio/pair-librispeech-5703-47212-0000/librispeech-5703-47212-0000__slow_delivery__severe.flac",
+      "reference_audio_path": "audio/pair-librispeech-5703-47212-0000/librispeech-5703-47212-0000__reference.flac",
+      "sha256": "92d3095f7107742effb79d260464258029adfd7274006cfbab1bb56f21d72fc9",
+      "duration_sec": 22.26,
+      "sample_rate_hz": 16000,
+      "transcript": "With her white paint and her scarlet smoke stack, the inverse shield, one of the two small steamers that during the summer months, applied up and down the lock, and incidentally carried down communication between inverse shield and cryon.",
+      "transcript_differs_from_reference": false,
+      "transcript_difference_note": "",
+      "delivery_condition": "flawed",
+      "data_origin": "transformed_real",
+      "flaw_category": "slow_delivery",
+      "severity": "severe",
+      "severity_rank": 4,
+      "flaw_intervals": [
+        {
+          "start": 0.0,
+          "end": 22.26,
+          "label": "slowed_down",
+          "detail": "whole recording at 1.50x the reference duration"
+        }
+      ],
+      "generation": {
+        "method": "time_stretch_psola",
+        "parameters": {
+          "duration_factor": 1.5
+        },
+        "tool": "praat-parselmouth"
+      },
+      "annotation": {
+        "label_provenance": "generated_by_construction",
+        "label_support": "by_construction",
+        "annotator": null,
+        "notes": "The whole recording was time-stretched. Natural slow speech also changes pausing, which this does not reproduce."
+      },
+      "measured": {
+        "provenance": "automatic_estimate",
+        "tool": "speakiq-ai-coach backend 0.1.0",
+        "pitch_median_hz": 82.8,
+        "pitch_range_semitones": 27.36,
+        "total_silence_sec": 3.25,
+        "internal_pause_count": 4,
+        "syllable_rate_estimate_per_sec": 1.84,
+        "spectral_centroid_hz": 912.5,
+        "peak_amplitude": 0.8029,
+        "support_check": {
+          "metric": "duration_sec",
+          "reference_value": 14.84,
+          "sample_value": 22.26,
+          "expectation": "duration is within 3% of 1.50x the reference",
+          "supported": true
+        }
+      },
+      "split": "train"
+    },
+    {
+      "sample_id": "librispeech-5703-47212-0000__uneven_pacing__severe",
+      "pair_id": "pair-librispeech-5703-47212-0000",
+      "source_id": "librispeech-5703-47212-0000",
+      "speaker_id": "librispeech-speaker-5703",
+      "audio_path": "audio/pair-librispeech-5703-47212-0000/librispeech-5703-47212-0000__uneven_pacing__severe.flac",
+      "reference_audio_path": "audio/pair-librispeech-5703-47212-0000/librispeech-5703-47212-0000__reference.flac",
+      "sha256": "d3fb94e80da48e66b7fc3d233bf8e75dcfe1444682d8960ca0abf15228684e50",
+      "duration_sec": 16.935,
+      "sample_rate_hz": 16000,
+      "transcript": "With her white paint and her scarlet smoke stack, the inverse shield, one of the two small steamers that during the summer months, applied up and down the lock, and incidentally carried down communication between inverse shield and cryon.",
+      "transcript_differs_from_reference": false,
+      "transcript_difference_note": "",
+      "delivery_condition": "flawed",
+      "data_origin": "transformed_real",
+      "flaw_category": "uneven_pacing",
+      "severity": "severe",
+      "severity_rank": 4,
+      "flaw_intervals": [
+        {
+          "start": 0.0,
+          "end": 3.0867,
+          "label": "fast_segment",
+          "detail": "0.67x the reference duration for this stretch"
+        },
+        {
+          "start": 3.0867,
+          "end": 8.4417,
+          "label": "slow_segment",
+          "detail": "1.50x the reference duration for this stretch"
+        },
+        {
+          "start": 8.4417,
+          "end": 9.615,
+          "label": "fast_segment",
+          "detail": "0.67x the reference duration for this stretch"
+        },
+        {
+          "start": 9.615,
+          "end": 16.935,
+          "label": "slow_segment",
+          "detail": "1.50x the reference duration for this stretch"
+        }
+      ],
+      "generation": {
+        "method": "alternating_time_stretch_psola",
+        "parameters": {
+          "contrast": 1.5,
+          "segments": 4
+        },
+        "tool": "praat-parselmouth"
+      },
+      "annotation": {
+        "label_provenance": "generated_by_construction",
+        "label_support": "by_construction",
+        "annotator": null,
+        "notes": "Alternating stretches were sped up and slowed down; the segment boundaries are exact."
+      },
+      "measured": {
+        "provenance": "automatic_estimate",
+        "tool": "speakiq-ai-coach backend 0.1.0",
+        "pitch_median_hz": 82.8,
+        "pitch_range_semitones": 7.98,
+        "total_silence_sec": 1.92,
+        "internal_pause_count": 4,
+        "syllable_rate_estimate_per_sec": 2.13,
+        "spectral_centroid_hz": 933.9,
+        "peak_amplitude": 0.8028,
+        "support_check": {
+          "metric": "none",
+          "reference_value": null,
+          "sample_value": null,
+          "expectation": "no independent automatic check is implemented for this category",
+          "supported": null
+        }
+      },
+      "split": "train"
+    },
+    {
+      "sample_id": "librispeech-5703-47212-0000__pitch_monotony__severe",
+      "pair_id": "pair-librispeech-5703-47212-0000",
+      "source_id": "librispeech-5703-47212-0000",
+      "speaker_id": "librispeech-speaker-5703",
+      "audio_path": "audio/pair-librispeech-5703-47212-0000/librispeech-5703-47212-0000__pitch_monotony__severe.flac",
+      "reference_audio_path": "audio/pair-librispeech-5703-47212-0000/librispeech-5703-47212-0000__reference.flac",
+      "sha256": "30d1e1f45541adbab54069a06ec070aa3b75c749fb6c30d83746ff4f5e9d8d11",
+      "duration_sec": 14.84,
+      "sample_rate_hz": 16000,
+      "transcript": "With her white paint and her scarlet smoke stack, the inverse shield, one of the two small steamers that during the summer months, applied up and down the lock, and incidentally carried down communication between inverse shield and cryon.",
+      "transcript_differs_from_reference": false,
+      "transcript_difference_note": "",
+      "delivery_condition": "flawed",
+      "data_origin": "transformed_real",
+      "flaw_category": "pitch_monotony",
+      "severity": "severe",
+      "severity_rank": 4,
+      "flaw_intervals": [
+        {
+          "start": 0.0,
+          "end": 14.84,
+          "label": "reduced_pitch_variation",
+          "detail": "pitch movement scaled to 0.10 of the reference around 83 Hz"
+        }
+      ],
+      "generation": {
+        "method": "pitch_range_compression_psola",
+        "parameters": {
+          "keep_fraction": 0.1,
+          "median_hz": 83.1
+        },
+        "tool": "praat-parselmouth"
+      },
+      "annotation": {
+        "label_provenance": "generated_by_construction",
+        "label_support": "by_construction",
+        "annotator": null,
+        "notes": "Pitch movement around the speaker's median was scaled down; timing and words are unchanged."
+      },
+      "measured": {
+        "provenance": "automatic_estimate",
+        "tool": "speakiq-ai-coach backend 0.1.0",
+        "pitch_median_hz": 83.0,
+        "pitch_range_semitones": 0.9,
+        "total_silence_sec": 2.12,
+        "internal_pause_count": 4,
+        "syllable_rate_estimate_per_sec": 2.02,
+        "spectral_centroid_hz": 945.2,
+        "peak_amplitude": 0.7836,
+        "support_check": {
+          "metric": "pitch_range_semitones",
+          "reference_value": 8.19,
+          "sample_value": 0.9,
+          "expectation": "measured pitch range is narrower than the reference",
+          "supported": true
+        }
+      },
+      "split": "train"
+    },
+    {
+      "sample_id": "librispeech-5703-47212-0000__unclear_articulation__severe",
+      "pair_id": "pair-librispeech-5703-47212-0000",
+      "source_id": "librispeech-5703-47212-0000",
+      "speaker_id": "librispeech-speaker-5703",
+      "audio_path": "audio/pair-librispeech-5703-47212-0000/librispeech-5703-47212-0000__unclear_articulation__severe.flac",
+      "reference_audio_path": "audio/pair-librispeech-5703-47212-0000/librispeech-5703-47212-0000__reference.flac",
+      "sha256": "a72f3aff28917eecd2a618aa32500c12a0ce413717982734a6c5798837b4591e",
+      "duration_sec": 14.84,
+      "sample_rate_hz": 16000,
+      "transcript": "With her white paint and her scarlet smoke stack, the inverse shield, one of the two small steamers that during the summer months, applied up and down the lock, and incidentally carried down communication between inverse shield and cryon.",
+      "transcript_differs_from_reference": false,
+      "transcript_difference_note": "",
+      "delivery_condition": "flawed",
+      "data_origin": "transformed_real",
+      "flaw_category": "unclear_articulation",
+      "severity": "severe",
+      "severity_rank": 4,
+      "flaw_intervals": [
+        {
+          "start": 0.0,
+          "end": 14.84,
+          "label": "reduced_high_frequency_detail",
+          "detail": "low-pass filtered at 1000 Hz"
+        }
+      ],
+      "generation": {
+        "method": "lowpass_filter",
+        "parameters": {
+          "cutoff_hz": 1000.0,
+          "order": 6
+        },
+        "tool": "scipy"
+      },
+      "annotation": {
+        "label_provenance": "generated_by_construction",
+        "label_support": "proxy",
+        "annotator": null,
+        "notes": "PROXY LABEL. Low-pass filtering removes high-frequency consonant detail but is not real mumbled or slurred speech."
+      },
+      "measured": {
+        "provenance": "automatic_estimate",
+        "tool": "speakiq-ai-coach backend 0.1.0",
+        "pitch_median_hz": 83.0,
+        "pitch_range_semitones": 7.07,
+        "total_silence_sec": 2.2,
+        "internal_pause_count": 4,
+        "syllable_rate_estimate_per_sec": 2.02,
+        "spectral_centroid_hz": 271.4,
+        "peak_amplitude": 0.7046,
+        "support_check": {
+          "metric": "spectral_centroid_hz",
+          "reference_value": 949.7,
+          "sample_value": 271.4,
+          "expectation": "mean spectral centroid is lower than the reference",
+          "supported": true
+        }
+      },
+      "split": "train"
+    }
+  ],
+  "splits": {
+    "strategy": "Whole speakers are assigned to one split each by a seeded shuffle; every sample of a pair shares its speaker's split.",
+    "seed": 20261013,
+    "unit": "speaker",
+    "train": [
+      "librispeech-speaker-5703"
+    ],
+    "validation": [],
+    "test": [],
+    "notes": "Fewer than three speakers: no held-out split can be formed without leakage, so all data is in train."
+  }
+}

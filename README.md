@@ -15,6 +15,7 @@ The full specification lives in [`docs/PROJECT_SPEC.yaml`](docs/PROJECT_SPEC.yam
 | Workspace → backend: upload a recording, get real measurements, transcript and word timing | Working (`POST /api/analyze`) |
 | Dashboard and Acoustic Twin for your recording | Working with real backend results; switchable to the demo fixture |
 | Findings, baseline comparison charts, coaching text and report content | **Demo fixture** (`frontend/src/fixtures/demoAnalysis.ts`), not computed from audio. Evidence Coach and Reports are demo-only |
+| Contrastive demonstration dataset: 3 real recordings, 72 transformed variants, schema, validator, dataset card | Built and validated (see [Dataset](#dataset)) |
 | Baseline comparison and flaw detection | Not implemented yet |
 | Free-form coach questions, language model, Supabase, hosting | Not implemented or connected |
 
@@ -27,6 +28,8 @@ frontend/   React + Vite + TypeScript + Tailwind CSS
 backend/    Python + FastAPI
   app/audio/    acoustic feature extraction
   app/speech/   transcription and word alignment
+  app/dataset/  dataset schema, transforms, build and validation
+data/       contrastive dataset: sources, examples, manifest, schema, dataset card
 docs/       Project specification
 ```
 
@@ -170,6 +173,20 @@ Words the recogniser heard that are not in the transcript are listed in `unmatch
 ### Combined analysis (`/api/analyze`)
 
 Runs all three. Acoustic features are always returned for valid audio. If transcription or alignment cannot run, that part is `null` and `components` gives its `status`, `code` and `message`, so a missing model never blocks the acoustic measurements.
+
+## Dataset
+
+`data/` holds a small contrastive speech dataset: three public-domain LibriVox recordings (three speakers) and, for each, 24 deliberately flawed versions made by signal processing, with the altered intervals recorded exactly. Read [`data/DATASET_CARD.md`](data/DATASET_CARD.md) before using it; in short, the flawed samples are transforms of real recordings, not natural flawed speech, and nothing has been manually annotated.
+
+From `backend/`:
+
+```powershell
+python -m app.dataset build                                   # regenerate all 75 samples (about 19 MB, not in Git)
+python -m app.dataset validate ..\data\speakiq-contrastive-v1  # check manifest and audio files
+python -m app.dataset validate ..\data\examples                # check the 7 committed example files
+```
+
+The build needs no network access and is deterministic. `pytest tests/test_dataset.py tests/test_stress.py` runs the dataset validation tests and the audio stress tests.
 
 ## Troubleshooting
 

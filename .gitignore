@@ -184,3 +184,6 @@ Thumbs.db
 
 # Claude Code local settings
 .claude/settings.local.json
+
+# Dataset: the full generated audio is rebuilt with `python -m app.dataset build`, not committed
+data/speakiq-contrastive-v1/audio/

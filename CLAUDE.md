@@ -22,7 +22,8 @@ SpeakIQ AI Coach — evidence-first speech delivery analysis with temporally gro
 - `frontend/` — React + Vite + TypeScript + Tailwind CSS
 - `backend/` — Python + FastAPI
 - `docs/` — specification and documentation
-- `data/` — dataset (not created yet)
+- `data/` — contrastive dataset: `sources/` (3 committed LibriVox clips + `sources.json`), `examples/` (7 committed samples), `speakiq-contrastive-v1/manifest.json` (committed; its `audio/` is gitignored and rebuilt), `schema/`, `DATASET_CARD.md`
+- `backend/app/dataset/` — schema (pydantic, versioned), deterministic transforms, `build`, `validate`. Labels are known by construction; `measured` values are automatic estimates and must never be used to set labels. After changing the schema or recipes, rerun `export-schema`, `build` and `build-examples` and update the figures in the dataset card from the new manifest. Praat resynthesis must stay seeded (`PRAAT_SEED`) or builds stop being reproducible.
 - `backend/app/audio/` — real feature extraction (`loading`, `features`, `pitch`, `timing`, `pipeline`, `schemas`). Each metric reports `status` (`measured` / `estimated` / `unavailable`), `method` and `limitations`; keep that contract for new metrics.
 - `backend/app/speech/` — local transcription (faster-whisper, loaded lazily) and transcript-to-recognition word alignment. Unmatched words get null times; never interpolate or invent them.
 - API routes live under `/api` in `backend/app/main.py`: `health`, `features`, `transcribe`, `align`, `analyze`. Errors are `{"detail": {"code", "message"}}`. The frontend calls `/api/health` and `/api/analyze` through `frontend/src/lib/api.ts`.
@@ -51,6 +52,7 @@ Backend (run from `backend/`, PowerShell):
 - `python -m venv .venv; .\.venv\Scripts\Activate.ps1; pip install -r requirements-dev.txt`
 - `uvicorn app.main:app --reload --port 8000` — API on http://127.0.0.1:8000, Swagger UI at `/docs`
 - `python -m app.speech.prefetch` — download the transcription model once
+- `python -m app.dataset build | build-examples | validate DIR | export-schema` — dataset commands
 - `pytest`
 
 ## Automatic GitHub Commit and Push Policy

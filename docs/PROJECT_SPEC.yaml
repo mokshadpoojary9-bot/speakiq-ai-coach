@@ -203,4 +203,19 @@ milestones:
       - "Preserve the visual design, charts and 3D Acoustic Twin; integrate real measurements where available with a graceful fallback."
       - "Verify backend CORS for the local frontend origin; keep HF_TOKEN in the backend only."
       - "Frontend tests with mocked responses for upload, success, errors and empty results."
-  # Milestones 5 and later: not yet supplied by the owner.
+  - id: 5
+    name: "Contrastive speech dataset and stress testing"
+    source: "Summarised from the owner's Milestone 5 build prompt, which was received in full."
+    tasks:
+      - "Versioned dataset schema: sample ID, pair ID, audio paths, transcript, speaker or synthetic-speaker ID, delivery condition, flaw category, severity, timestamps, annotation provenance, dataset version."
+      - "Cover excessive pauses, rushed delivery, slow delivery, filler words, uneven pacing, pitch monotony and unclear articulation, only when the data supports the label."
+      - "Small demonstration dataset from properly licensed recordings and/or clearly labelled synthetic or transformed samples; never present synthetic audio as natural speech."
+      - "Pair examples with the same transcript where possible and document transcript differences."
+      - "Severity gradient from clearly flawed to near-reference; distinguish manual labels from automatically measured estimates."
+      - "Validation for missing files, invalid timestamps, duplicate IDs, mismatched transcripts, invalid labels and missing metadata."
+      - "Reproducible splits without recording or speaker leakage."
+      - "Stress-test sample rates, silence, noise, clipped audio, short clips, empty files and unsupported formats."
+      - "Dataset card: provenance, licensing, generation methods, annotation, limitations, biases, intended use."
+      - "Keep large audio out of Git; include compact licensed examples and document hosting and download."
+      - "Fixed seeds, automated dataset-validation tests, a reproducible build command, and no invented sizes, statistics or validation claims."
+  # Milestones 6 and later: not yet supplied by the owner.

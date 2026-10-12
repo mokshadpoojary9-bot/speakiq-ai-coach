@@ -1,0 +1,772 @@
+{
+  "$defs": {
+    "Annotation": {
+      "additionalProperties": false,
+      "properties": {
+        "label_provenance": {
+          "enum": [
+            "generated_by_construction",
+            "manual",
+            "automatic_estimate"
+          ],
+          "title": "Label Provenance",
+          "type": "string"
+        },
+        "label_support": {
+          "anyOf": [
+            {
+              "enum": [
+                "by_construction",
+                "proxy"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Label Support"
+        },
+        "annotator": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Annotator"
+        },
+        "notes": {
+          "default": "",
+          "title": "Notes",
+          "type": "string"
+        }
+      },
+      "required": [
+        "label_provenance"
+      ],
+      "title": "Annotation",
+      "type": "object"
+    },
+    "FlawInterval": {
+      "additionalProperties": false,
+      "properties": {
+        "start": {
+          "title": "Start",
+          "type": "number"
+        },
+        "end": {
+          "title": "End",
+          "type": "number"
+        },
+        "label": {
+          "minLength": 1,
+          "title": "Label",
+          "type": "string"
+        },
+        "detail": {
+          "default": "",
+          "title": "Detail",
+          "type": "string"
+        }
+      },
+      "required": [
+        "start",
+        "end",
+        "label"
+      ],
+      "title": "FlawInterval",
+      "type": "object"
+    },
+    "Generation": {
+      "additionalProperties": false,
+      "properties": {
+        "method": {
+          "minLength": 1,
+          "title": "Method",
+          "type": "string"
+        },
+        "parameters": {
+          "additionalProperties": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "integer"
+              },
+              {
+                "type": "string"
+              },
+              {
+                "items": {
+                  "type": "number"
+                },
+                "type": "array"
+              }
+            ]
+          },
+          "default": {},
+          "title": "Parameters",
+          "type": "object"
+        },
+        "tool": {
+          "minLength": 1,
+          "title": "Tool",
+          "type": "string"
+        }
+      },
+      "required": [
+        "method",
+        "tool"
+      ],
+      "title": "Generation",
+      "type": "object"
+    },
+    "Measured": {
+      "additionalProperties": false,
+      "description": "Automatic estimates from the SpeakIQ audio pipeline. These are not labels.",
+      "properties": {
+        "provenance": {
+          "const": "automatic_estimate",
+          "default": "automatic_estimate",
+          "title": "Provenance",
+          "type": "string"
+        },
+        "tool": {
+          "title": "Tool",
+          "type": "string"
+        },
+        "pitch_median_hz": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Pitch Median Hz"
+        },
+        "pitch_range_semitones": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Pitch Range Semitones"
+        },
+        "total_silence_sec": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Total Silence Sec"
+        },
+        "internal_pause_count": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Internal Pause Count"
+        },
+        "syllable_rate_estimate_per_sec": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Syllable Rate Estimate Per Sec"
+        },
+        "spectral_centroid_hz": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Spectral Centroid Hz"
+        },
+        "peak_amplitude": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Peak Amplitude"
+        },
+        "support_check": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SupportCheck"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "required": [
+        "tool"
+      ],
+      "title": "Measured",
+      "type": "object"
+    },
+    "Pair": {
+      "additionalProperties": false,
+      "description": "One reference delivery and every flawed delivery derived from the same recording.",
+      "properties": {
+        "pair_id": {
+          "minLength": 1,
+          "title": "Pair Id",
+          "type": "string"
+        },
+        "source_id": {
+          "minLength": 1,
+          "title": "Source Id",
+          "type": "string"
+        },
+        "reference_sample_id": {
+          "minLength": 1,
+          "title": "Reference Sample Id",
+          "type": "string"
+        },
+        "transcript": {
+          "minLength": 1,
+          "title": "Transcript",
+          "type": "string"
+        }
+      },
+      "required": [
+        "pair_id",
+        "source_id",
+        "reference_sample_id",
+        "transcript"
+      ],
+      "title": "Pair",
+      "type": "object"
+    },
+    "Sample": {
+      "additionalProperties": false,
+      "properties": {
+        "sample_id": {
+          "pattern": "^[a-z0-9][a-z0-9_.-]*$",
+          "title": "Sample Id",
+          "type": "string"
+        },
+        "pair_id": {
+          "minLength": 1,
+          "title": "Pair Id",
+          "type": "string"
+        },
+        "source_id": {
+          "minLength": 1,
+          "title": "Source Id",
+          "type": "string"
+        },
+        "speaker_id": {
+          "minLength": 1,
+          "title": "Speaker Id",
+          "type": "string"
+        },
+        "audio_path": {
+          "minLength": 1,
+          "title": "Audio Path",
+          "type": "string"
+        },
+        "reference_audio_path": {
+          "minLength": 1,
+          "title": "Reference Audio Path",
+          "type": "string"
+        },
+        "sha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Sha256",
+          "type": "string"
+        },
+        "duration_sec": {
+          "exclusiveMinimum": 0,
+          "title": "Duration Sec",
+          "type": "number"
+        },
+        "sample_rate_hz": {
+          "exclusiveMinimum": 0,
+          "title": "Sample Rate Hz",
+          "type": "integer"
+        },
+        "transcript": {
+          "minLength": 1,
+          "title": "Transcript",
+          "type": "string"
+        },
+        "transcript_differs_from_reference": {
+          "default": false,
+          "title": "Transcript Differs From Reference",
+          "type": "boolean"
+        },
+        "transcript_difference_note": {
+          "default": "",
+          "title": "Transcript Difference Note",
+          "type": "string"
+        },
+        "delivery_condition": {
+          "enum": [
+            "reference",
+            "flawed"
+          ],
+          "title": "Delivery Condition",
+          "type": "string"
+        },
+        "data_origin": {
+          "enum": [
+            "real_recording",
+            "transformed_real",
+            "synthetic"
+          ],
+          "title": "Data Origin",
+          "type": "string"
+        },
+        "flaw_category": {
+          "anyOf": [
+            {
+              "enum": [
+                "excessive_pauses",
+                "rushed_delivery",
+                "slow_delivery",
+                "filler_words",
+                "uneven_pacing",
+                "pitch_monotony",
+                "unclear_articulation"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Flaw Category"
+        },
+        "severity": {
+          "enum": [
+            "none",
+            "near_reference",
+            "mild",
+            "moderate",
+            "severe"
+          ],
+          "title": "Severity",
+          "type": "string"
+        },
+        "severity_rank": {
+          "maximum": 4,
+          "minimum": 0,
+          "title": "Severity Rank",
+          "type": "integer"
+        },
+        "flaw_intervals": {
+          "items": {
+            "$ref": "#/$defs/FlawInterval"
+          },
+          "title": "Flaw Intervals",
+          "type": "array"
+        },
+        "generation": {
+          "$ref": "#/$defs/Generation"
+        },
+        "annotation": {
+          "$ref": "#/$defs/Annotation"
+        },
+        "measured": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Measured"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "split": {
+          "enum": [
+            "train",
+            "validation",
+            "test"
+          ],
+          "title": "Split",
+          "type": "string"
+        }
+      },
+      "required": [
+        "sample_id",
+        "pair_id",
+        "source_id",
+        "speaker_id",
+        "audio_path",
+        "reference_audio_path",
+        "sha256",
+        "duration_sec",
+        "sample_rate_hz",
+        "transcript",
+        "delivery_condition",
+        "data_origin",
+        "flaw_category",
+        "severity",
+        "severity_rank",
+        "flaw_intervals",
+        "generation",
+        "annotation",
+        "split"
+      ],
+      "title": "Sample",
+      "type": "object"
+    },
+    "SourceRecording": {
+      "additionalProperties": false,
+      "properties": {
+        "source_id": {
+          "minLength": 1,
+          "title": "Source Id",
+          "type": "string"
+        },
+        "speaker_id": {
+          "minLength": 1,
+          "title": "Speaker Id",
+          "type": "string"
+        },
+        "speaker_kind": {
+          "enum": [
+            "human",
+            "synthetic"
+          ],
+          "title": "Speaker Kind",
+          "type": "string"
+        },
+        "audio_path": {
+          "minLength": 1,
+          "title": "Audio Path",
+          "type": "string"
+        },
+        "sha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Sha256",
+          "type": "string"
+        },
+        "origin": {
+          "minLength": 1,
+          "title": "Origin",
+          "type": "string"
+        },
+        "description": {
+          "minLength": 1,
+          "title": "Description",
+          "type": "string"
+        },
+        "license": {
+          "minLength": 1,
+          "title": "License",
+          "type": "string"
+        },
+        "attribution": {
+          "minLength": 1,
+          "title": "Attribution",
+          "type": "string"
+        },
+        "url": {
+          "default": "",
+          "title": "Url",
+          "type": "string"
+        },
+        "transcript": {
+          "minLength": 1,
+          "title": "Transcript",
+          "type": "string"
+        },
+        "transcript_provenance": {
+          "enum": [
+            "automatic_asr_unverified",
+            "manual_verified",
+            "source_text"
+          ],
+          "title": "Transcript Provenance",
+          "type": "string"
+        },
+        "transcript_tool": {
+          "default": "",
+          "title": "Transcript Tool",
+          "type": "string"
+        },
+        "notes": {
+          "default": "",
+          "title": "Notes",
+          "type": "string"
+        }
+      },
+      "required": [
+        "source_id",
+        "speaker_id",
+        "speaker_kind",
+        "audio_path",
+        "sha256",
+        "origin",
+        "description",
+        "license",
+        "attribution",
+        "transcript",
+        "transcript_provenance"
+      ],
+      "title": "SourceRecording",
+      "type": "object"
+    },
+    "SplitInfo": {
+      "additionalProperties": false,
+      "properties": {
+        "strategy": {
+          "minLength": 1,
+          "title": "Strategy",
+          "type": "string"
+        },
+        "seed": {
+          "title": "Seed",
+          "type": "integer"
+        },
+        "unit": {
+          "const": "speaker",
+          "title": "Unit",
+          "type": "string"
+        },
+        "train": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Train",
+          "type": "array"
+        },
+        "validation": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Validation",
+          "type": "array"
+        },
+        "test": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Test",
+          "type": "array"
+        },
+        "notes": {
+          "default": "",
+          "title": "Notes",
+          "type": "string"
+        }
+      },
+      "required": [
+        "strategy",
+        "seed",
+        "unit",
+        "train",
+        "validation",
+        "test"
+      ],
+      "title": "SplitInfo",
+      "type": "object"
+    },
+    "SupportCheck": {
+      "additionalProperties": false,
+      "description": "Whether an independent automatic measurement moves the way the label implies.",
+      "properties": {
+        "metric": {
+          "title": "Metric",
+          "type": "string"
+        },
+        "reference_value": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Reference Value"
+        },
+        "sample_value": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Sample Value"
+        },
+        "expectation": {
+          "title": "Expectation",
+          "type": "string"
+        },
+        "supported": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Null when no automatic check exists for this category.",
+          "title": "Supported"
+        }
+      },
+      "required": [
+        "metric",
+        "reference_value",
+        "sample_value",
+        "expectation",
+        "supported"
+      ],
+      "title": "SupportCheck",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "const": "1.0.0",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "dataset_name": {
+      "minLength": 1,
+      "title": "Dataset Name",
+      "type": "string"
+    },
+    "dataset_version": {
+      "pattern": "^\\d+\\.\\d+\\.\\d+$",
+      "title": "Dataset Version",
+      "type": "string"
+    },
+    "description": {
+      "minLength": 1,
+      "title": "Description",
+      "type": "string"
+    },
+    "license": {
+      "minLength": 1,
+      "title": "License",
+      "type": "string"
+    },
+    "built_with": {
+      "minLength": 1,
+      "title": "Built With",
+      "type": "string"
+    },
+    "seed": {
+      "title": "Seed",
+      "type": "integer"
+    },
+    "audio_format": {
+      "minLength": 1,
+      "title": "Audio Format",
+      "type": "string"
+    },
+    "flaw_categories_covered": {
+      "items": {
+        "enum": [
+          "excessive_pauses",
+          "rushed_delivery",
+          "slow_delivery",
+          "filler_words",
+          "uneven_pacing",
+          "pitch_monotony",
+          "unclear_articulation"
+        ],
+        "type": "string"
+      },
+      "title": "Flaw Categories Covered",
+      "type": "array"
+    },
+    "flaw_categories_not_covered": {
+      "additionalProperties": {
+        "type": "string"
+      },
+      "title": "Flaw Categories Not Covered",
+      "type": "object"
+    },
+    "sources": {
+      "items": {
+        "$ref": "#/$defs/SourceRecording"
+      },
+      "title": "Sources",
+      "type": "array"
+    },
+    "pairs": {
+      "items": {
+        "$ref": "#/$defs/Pair"
+      },
+      "title": "Pairs",
+      "type": "array"
+    },
+    "samples": {
+      "items": {
+        "$ref": "#/$defs/Sample"
+      },
+      "title": "Samples",
+      "type": "array"
+    },
+    "splits": {
+      "$ref": "#/$defs/SplitInfo"
+    }
+  },
+  "required": [
+    "schema_version",
+    "dataset_name",
+    "dataset_version",
+    "description",
+    "license",
+    "built_with",
+    "seed",
+    "audio_format",
+    "flaw_categories_covered",
+    "flaw_categories_not_covered",
+    "sources",
+    "pairs",
+    "samples",
+    "splits"
+  ],
+  "title": "DatasetManifest",
+  "type": "object"
+}
