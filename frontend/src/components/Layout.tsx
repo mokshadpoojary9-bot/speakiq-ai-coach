@@ -1,5 +1,5 @@
-import { Suspense } from 'react'
-import { Link, NavLink, Outlet } from 'react-router-dom'
+import { Suspense, useEffect } from 'react'
+import { Link, NavLink, Outlet, useLocation } from 'react-router-dom'
 import { HealthStatus } from './HealthStatus'
 import { LoadingState } from './ui'
 
@@ -26,6 +26,13 @@ function Logo() {
 }
 
 export function Layout() {
+  const { pathname } = useLocation()
+
+  // Each page starts at the top instead of inheriting the previous page's scroll position.
+  useEffect(() => {
+    window.scrollTo(0, 0)
+  }, [pathname])
+
   return (
     <div className="flex min-h-screen flex-col">
       <a
@@ -70,7 +77,7 @@ export function Layout() {
 
       <footer className="border-t border-line print:hidden">
         <div className="mx-auto flex max-w-6xl flex-col gap-2 px-4 py-6 text-xs text-muted sm:flex-row sm:items-center sm:justify-between sm:px-6">
-          <p>SpeakIQ AI Coach · Analysis views currently show demo data only.</p>
+          <p>SpeakIQ AI Coach · Demo data is always labelled as such.</p>
           <HealthStatus />
         </div>
       </footer>

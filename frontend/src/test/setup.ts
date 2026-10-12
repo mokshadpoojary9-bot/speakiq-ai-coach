@@ -12,6 +12,8 @@ vi.stubGlobal('ResizeObserver', ResizeObserverStub)
 
 HTMLCanvasElement.prototype.getContext = (() => null) as typeof HTMLCanvasElement.prototype.getContext
 
+window.scrollTo = () => {}
+
 URL.createObjectURL = () => 'blob:test-audio'
 URL.revokeObjectURL = () => {}
 

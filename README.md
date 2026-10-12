@@ -12,12 +12,13 @@ The full specification lives in [`docs/PROJECT_SPEC.yaml`](docs/PROJECT_SPEC.yam
 | Local transcription with faster-whisper | Working; no Hugging Face token needed for the default model |
 | Frontend pages: landing, workspace, dashboard, Acoustic Twin, Evidence Coach, reports | Working |
 | Audio file validation, playback and waveform in the workspace | Working, in the browser only |
-| Frontend use of the analysis API | Not connected yet. Only the backend status indicator calls the API; "Run analysis" still reports that analysis is unavailable |
-| Findings, charts, coaching text and report content in the frontend | **Demo fixture** (`frontend/src/fixtures/demoAnalysis.ts`), not computed from audio |
+| Workspace → backend: upload a recording, get real measurements, transcript and word timing | Working (`POST /api/analyze`) |
+| Dashboard and Acoustic Twin for your recording | Working with real backend results; switchable to the demo fixture |
+| Findings, baseline comparison charts, coaching text and report content | **Demo fixture** (`frontend/src/fixtures/demoAnalysis.ts`), not computed from audio. Evidence Coach and Reports are demo-only |
 | Baseline comparison and flaw detection | Not implemented yet |
 | Free-form coach questions, language model, Supabase, hosting | Not implemented or connected |
 
-Every frontend view that shows fixture data carries a "Demo data — not a real analysis" label. No paid API keys are needed to run the project locally.
+Every frontend view that shows fixture data carries a "Demo data — not a real analysis" label, and views of your own recording carry a "Real analysis" label. A real analysis is kept in browser memory only and is lost when the page is reloaded. No paid API keys are needed to run the project locally.
 
 ## Repository layout
 
@@ -104,6 +105,15 @@ npm run dev
 `VITE_*` values are compiled into the public browser bundle, so this file must only ever hold the backend URL, never a secret. `frontend/.env.local` is ignored by Git.
 
 Run the backend and the frontend in two separate terminals. The frontend footer shows whether it can reach the backend.
+
+### Using it
+
+1. Open the **Workspace**, choose a WAV, MP3, OGG or FLAC file, and optionally paste the text you were delivering.
+2. Press **Run analysis**. The file goes to `POST /api/analyze` on your backend.
+3. The result shows which steps completed, the recognised text and a time for each word. **Open the dashboard** for the waveform, playback (select a word to play from it), measured pitch, energy and spectral contours, detected pauses, and each metric's method and limitations.
+4. The **Acoustic Twin** shows the same recording's measured energy and pitch in 3D (or 2D).
+
+Real recordings have no findings, severities or coaching yet, because flaw detection and baseline comparison are not implemented. The app says so rather than showing demo findings as yours.
 
 ## API
 

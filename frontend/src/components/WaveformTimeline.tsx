@@ -1,26 +1,31 @@
 import { formatInterval, formatTime } from '../lib/format'
-import { colors, severityColor } from '../lib/theme'
-import type { Finding } from '../types'
+import type { TimelineMarker } from '../lib/measurements'
+import { colors } from '../lib/theme'
 
 const VIEW_W = 1000
 const VIEW_H = 120
 
-/** Static waveform drawn from supplied peaks, with selectable flaw intervals on top. */
+/** Static waveform drawn from supplied peaks, with labelled intervals on top. */
 export function WaveformTimeline({
   peaks,
   durationSec,
-  findings,
-  selectedId,
+  markers,
+  description,
+  selectedId = null,
   onSelect,
 }: {
   peaks: number[]
   durationSec: number
-  findings: Finding[]
-  selectedId: string | null
-  onSelect: (id: string) => void
+  markers: TimelineMarker[]
+  /** Accessible summary of what the picture shows. */
+  description: string
+  selectedId?: string | null
+  /** When given, markers are buttons. */
+  onSelect?: (id: string) => void
 }) {
-  const barW = VIEW_W / peaks.length
-  const ticks = Array.from({ length: Math.floor(durationSec / 4) + 1 }, (_, i) => i * 4)
+  const barW = VIEW_W / Math.max(1, peaks.length)
+  const tickStep = durationSec <= 30 ? 4 : durationSec <= 120 ? 15 : 60
+  const ticks = Array.from({ length: Math.floor(durationSec / tickStep) + 1 }, (_, i) => i * tickStep)
 
   return (
     <div>
@@ -30,7 +35,7 @@ export function WaveformTimeline({
           preserveAspectRatio="none"
           className="absolute inset-0 h-full w-full"
           role="img"
-          aria-label={`Waveform of the ${formatTime(durationSec)} sample with ${findings.length} highlighted flaw intervals`}
+          aria-label={description}
         >
           {peaks.map((peak, i) => {
             const h = Math.max(1, peak * (VIEW_H - 12))
@@ -48,27 +53,28 @@ export function WaveformTimeline({
           })}
         </svg>
 
-        {findings.map((finding) => {
-          const left = (finding.interval.start / durationSec) * 100
-          const width = ((finding.interval.end - finding.interval.start) / durationSec) * 100
-          const selected = finding.id === selectedId
-          const color = severityColor[finding.severity]
-          return (
+        {markers.map((marker) => {
+          const selected = marker.id === selectedId
+          const name = `${marker.label}, ${formatInterval(marker)}`
+          const style = {
+            left: `${(marker.start / durationSec) * 100}%`,
+            width: `${((marker.end - marker.start) / durationSec) * 100}%`,
+            borderColor: marker.color,
+            backgroundColor: `${marker.color}${selected ? '55' : '26'}`,
+          }
+          return onSelect ? (
             <button
-              key={finding.id}
+              key={marker.id}
               type="button"
-              onClick={() => onSelect(finding.id)}
+              onClick={() => onSelect(marker.id)}
               aria-pressed={selected}
-              aria-label={`${finding.title}, ${formatInterval(finding.interval)}`}
-              title={`${finding.title} · ${formatInterval(finding.interval)}`}
+              aria-label={name}
+              title={name}
               className="absolute inset-y-0 cursor-pointer border-x-2 transition-colors"
-              style={{
-                left: `${left}%`,
-                width: `${width}%`,
-                borderColor: color,
-                backgroundColor: `${color}${selected ? '55' : '26'}`,
-              }}
+              style={style}
             />
+          ) : (
+            <div key={marker.id} title={name} className="absolute inset-y-0 border-x-2" style={style} />
           )
         })}
       </div>
@@ -78,7 +84,10 @@ export function WaveformTimeline({
           <span
             key={t}
             className="absolute"
-            style={{ left: `${(t / durationSec) * 100}%`, transform: t === 0 ? undefined : t >= durationSec ? 'translateX(-100%)' : 'translateX(-50%)' }}
+            style={{
+              left: `${(t / durationSec) * 100}%`,
+              transform: t === 0 ? undefined : t >= durationSec ? 'translateX(-100%)' : 'translateX(-50%)',
+            }}
           >
             {formatTime(t)}
           </span>

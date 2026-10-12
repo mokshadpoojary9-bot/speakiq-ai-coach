@@ -6,7 +6,7 @@ type State =
   | { kind: 'online'; health: HealthResponse }
   | { kind: 'offline' }
 
-/** Live backend status. Reports only what GET /health actually returned. */
+/** Live backend status. Reports only what GET /api/health actually returned. */
 export function HealthStatus() {
   const [state, setState] = useState<State>({ kind: 'loading' })
 

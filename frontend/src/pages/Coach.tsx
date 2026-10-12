@@ -1,6 +1,7 @@
 import { useId, useState } from 'react'
 import { AnalysisGate } from '../components/AnalysisGate'
 import { FindingDetail, FindingList } from '../components/Findings'
+import { DemoOnlyNotice } from '../components/SourceSwitch'
 import { Badge, Card, DemoBadge, EmptyState, PageHeader } from '../components/ui'
 import type { AnalysisResult } from '../types'
 
@@ -91,6 +92,7 @@ export default function Coach() {
       >
         <DemoBadge />
       </PageHeader>
+      <DemoOnlyNotice feature="coaching" />
       <AnalysisGate>{(analysis) => <CoachContent analysis={analysis} />}</AnalysisGate>
     </>
   )

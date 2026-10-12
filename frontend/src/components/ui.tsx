@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react'
 import { severityColor, severityLabel } from '../lib/theme'
+import type { MetricStatus } from '../lib/api'
 import type { EvidenceKind, Severity } from '../types'
 
 const btnBase =
@@ -77,6 +78,28 @@ const evidenceKindTone: Record<EvidenceKind, Tone> = {
 
 export function EvidenceKindBadge({ kind }: { kind: EvidenceKind }) {
   return <Badge tone={evidenceKindTone[kind]}>{evidenceKindLabel[kind]}</Badge>
+}
+
+const metricStatusLabel: Record<MetricStatus, string> = {
+  measured: 'Measured',
+  estimated: 'Estimated',
+  unavailable: 'Unavailable',
+}
+const metricStatusTone: Record<MetricStatus, Tone> = { measured: 'accent', estimated: 'warn', unavailable: 'neutral' }
+
+/** Status the backend reported for one real metric. */
+export function MetricStatusBadge({ status }: { status: MetricStatus }) {
+  return <Badge tone={metricStatusTone[status]}>{metricStatusLabel[status]}</Badge>
+}
+
+/** Marks a view that shows a real backend analysis rather than the demo fixture. */
+export function LiveBadge({ filename }: { filename: string }) {
+  return (
+    <Badge tone="accent">
+      <span aria-hidden="true" className="h-1.5 w-1.5 rounded-full bg-accent" />
+      Real analysis · {filename}
+    </Badge>
+  )
 }
 
 export function PageHeader({

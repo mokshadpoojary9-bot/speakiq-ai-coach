@@ -25,7 +25,7 @@ SpeakIQ AI Coach — evidence-first speech delivery analysis with temporally gro
 - `data/` — dataset (not created yet)
 - `backend/app/audio/` — real feature extraction (`loading`, `features`, `pitch`, `timing`, `pipeline`, `schemas`). Each metric reports `status` (`measured` / `estimated` / `unavailable`), `method` and `limitations`; keep that contract for new metrics.
 - `backend/app/speech/` — local transcription (faster-whisper, loaded lazily) and transcript-to-recognition word alignment. Unmatched words get null times; never interpolate or invent them.
-- API routes live under `/api` in `backend/app/main.py`: `health`, `features`, `transcribe`, `align`, `analyze`. Errors are `{"detail": {"code", "message"}}`. The frontend only calls `/api/health` so far.
+- API routes live under `/api` in `backend/app/main.py`: `health`, `features`, `transcribe`, `align`, `analyze`. Errors are `{"detail": {"code", "message"}}`. The frontend calls `/api/health` and `/api/analyze` through `frontend/src/lib/api.ts`.
 
 ## Configuration and secrets
 
@@ -34,7 +34,7 @@ SpeakIQ AI Coach — evidence-first speech delivery analysis with temporally gro
 - Backend tests must stay offline: use the fakes in `backend/tests/speech_fakes.py` instead of loading a real model.
 - Windows: `app/_windows_runtime.py` preloads a current `msvcp140.dll` (from the `msvc-runtime` package) before native imports; without it ctranslate2 segfaults on machines with an old system C++ runtime. Keep that import first in `app/__init__.py`.
 
-All analysis shown in the frontend currently comes from `frontend/src/fixtures/demoAnalysis.ts`. It is hand-authored demo data; keep `isDemo: true` and the `DemoBadge` on every view that uses it until the backend supplies real results.
+The frontend has two data sources. A real analysis from `/api/analyze` lives in `frontend/src/lib/session.tsx` (memory only) and is shown with `LiveBadge` on the Dashboard and Acoustic Twin. Everything else comes from `frontend/src/fixtures/demoAnalysis.ts`, hand-authored demo data that must keep `isDemo: true` and a `DemoBadge`. Never mix the two in one view, and never show findings, baselines or coaching for a real recording until the backend produces them. Frontend tests mock `fetch` (see `frontend/src/test/analysisSample.ts`); they must not need a running backend.
 
 ## Commands
 

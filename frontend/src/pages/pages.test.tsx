@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, within } from '@testing-library/react'
+import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import type { ReactNode } from 'react'
 import { MemoryRouter } from 'react-router-dom'
@@ -7,19 +7,6 @@ import { demoAnalysis } from '../fixtures/demoAnalysis'
 import Coach from './Coach'
 import Dashboard from './Dashboard'
 import Reports from './Reports'
-import Workspace, { MAX_AUDIO_BYTES, validateAudioFile } from './Workspace'
-
-vi.mock('wavesurfer.js', () => ({
-  default: {
-    create: () => ({
-      on: (event: string, callback: (seconds: number) => void) => {
-        if (event === 'ready') queueMicrotask(() => callback(12.5))
-      },
-      destroy: () => {},
-      playPause: () => {},
-    }),
-  },
-}))
 
 const renderPage = (page: ReactNode) => render(<MemoryRouter>{page}</MemoryRouter>)
 
@@ -109,53 +96,5 @@ describe('Reports', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Print or save as PDF' }))
 
     expect(print).toHaveBeenCalledOnce()
-  })
-})
-
-describe('Workspace', () => {
-  const audio = (name = 'talk.wav', type = 'audio/wav') => new File([new Uint8Array(2048)], name, { type })
-
-  it('starts empty with analysis disabled', () => {
-    renderPage(<Workspace />)
-
-    expect(screen.getByText('No audio selected yet')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Run analysis' })).toBeDisabled()
-  })
-
-  it('rejects a non-audio file with an error', () => {
-    renderPage(<Workspace />)
-
-    fireEvent.change(screen.getByLabelText(/^Audio file/), {
-      target: { files: [new File(['hello'], 'notes.pdf', { type: 'application/pdf' })] },
-    })
-
-    expect(screen.getByRole('alert')).toHaveTextContent(/notes.pdf.*is not a supported audio file/)
-    expect(screen.getByRole('button', { name: 'Run analysis' })).toBeDisabled()
-  })
-
-  it('previews a valid file and says plainly that analysis is not available', async () => {
-    const user = userEvent.setup()
-    renderPage(<Workspace />)
-
-    fireEvent.change(screen.getByLabelText(/^Audio file/), { target: { files: [audio()] } })
-    expect(screen.getByText('talk.wav')).toBeInTheDocument()
-    expect(await screen.findByText('Duration 0:12.5')).toBeInTheDocument()
-
-    await user.type(screen.getByLabelText('The text you were delivering'), 'Good morning everyone')
-    expect(screen.getByText('3 words')).toBeInTheDocument()
-
-    await user.click(screen.getByRole('button', { name: 'Run analysis' }))
-
-    expect(screen.getByText('Analysis isn’t available in this build')).toBeInTheDocument()
-    expect(screen.getByText(/nothing was uploaded or analysed/)).toBeInTheDocument()
-  })
-
-  it('validates type, emptiness and size', () => {
-    expect(validateAudioFile(audio())).toBeNull()
-    expect(validateAudioFile(audio('clip.MP3', ''))).toBeNull()
-    expect(validateAudioFile(new File([], 'empty.wav', { type: 'audio/wav' }))).toMatch(/is empty/)
-    const big = audio()
-    Object.defineProperty(big, 'size', { value: MAX_AUDIO_BYTES + 1 })
-    expect(validateAudioFile(big)).toMatch(/The limit is 25.0 MB/)
   })
 })

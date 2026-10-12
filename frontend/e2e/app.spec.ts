@@ -1,4 +1,26 @@
 import { expect, test } from '@playwright/test'
+import { sampleAnalysis } from '../src/test/analysisSample'
+
+/** One second of a 220 Hz tone as a 16-bit mono WAV, so the browser has real audio to decode. */
+function wavFile(): Buffer {
+  const sampleRate = 8000
+  const data = Buffer.alloc(sampleRate * 2)
+  for (let i = 0; i < sampleRate; i++) data.writeInt16LE(Math.round(8000 * Math.sin((2 * Math.PI * 220 * i) / sampleRate)), i * 2)
+  const header = Buffer.alloc(44)
+  header.write('RIFF', 0)
+  header.writeUInt32LE(36 + data.length, 4)
+  header.write('WAVEfmt ', 8)
+  header.writeUInt32LE(16, 16)
+  header.writeUInt16LE(1, 20)
+  header.writeUInt16LE(1, 22)
+  header.writeUInt32LE(sampleRate, 24)
+  header.writeUInt32LE(sampleRate * 2, 28)
+  header.writeUInt16LE(2, 32)
+  header.writeUInt16LE(16, 34)
+  header.write('data', 36)
+  header.writeUInt32LE(data.length, 40)
+  return Buffer.concat([header, data])
+}
 
 test('navigates from the landing page to the demo dashboard', async ({ page }) => {
   await page.goto('/')
@@ -45,7 +67,7 @@ test('Acoustic Twin falls back to 2D when WebGL is unavailable', async ({ page }
   await expect(page.getByRole('button', { name: '3D view' })).toBeDisabled()
 })
 
-test('workspace rejects a non-audio file and explains that analysis is not available', async ({ page }) => {
+test('workspace rejects a non-audio file', async ({ page }) => {
   await page.goto('/workspace')
   const input = page.getByLabel(/^Audio file/)
 
@@ -59,4 +81,44 @@ test('primary navigation is reachable by keyboard with a visible skip link', asy
 
   await expect(page.getByRole('link', { name: 'Skip to main content' })).toBeFocused()
   await expect(page.getByRole('link', { name: 'Skip to main content' })).toBeInViewport()
+})
+
+test('uploads a recording, shows the backend result, and carries it to the dashboard and Acoustic Twin', async ({ page }) => {
+  // The backend is mocked here; this checks the browser flow, not the analysis itself.
+  let uploadedName = ''
+  await page.route('**/api/analyze', async (route) => {
+    uploadedName = /filename="([^"]+)"/.exec(route.request().postData() ?? '')?.[1] ?? ''
+    await route.fulfill({ json: sampleAnalysis() })
+  })
+
+  await page.goto('/workspace')
+  await page.getByLabel(/^Audio file/).setInputFiles({ name: 'talk.wav', mimeType: 'audio/wav', buffer: wavFile() })
+  await expect(page.getByText('Duration 0:01.0')).toBeVisible()
+  await page.getByLabel('The text you were delivering').fill('Good morning everyone. Thank you coming')
+  await page.getByRole('button', { name: 'Run analysis' }).click()
+
+  const result = page.getByRole('region', { name: 'Analysis complete' })
+  await expect(result.getByText('good morning everyone thanks for coming')).toBeVisible()
+  await expect(result.getByText('0:00.1–0:00.4')).toBeVisible()
+  expect(uploadedName).toBe('talk.wav')
+
+  await result.getByRole('link', { name: 'Open the dashboard' }).click()
+  await expect(page.getByText('Real analysis · talk.wav')).toBeVisible()
+  await expect(page.getByText('Demo data — not a real analysis')).toHaveCount(0)
+  await expect(page.getByText('No findings for this recording')).toBeVisible()
+
+  await page.getByRole('navigation', { name: 'Primary' }).getByRole('link', { name: 'Acoustic Twin' }).click()
+  await expect(page.getByText('Real analysis · talk.wav')).toBeVisible()
+  await page.getByRole('button', { name: '2D view' }).click()
+  await expect(page.getByRole('img', { name: /Measured from talk.wav/ })).toBeVisible()
+})
+
+test('explains that the backend is unreachable when the request fails', async ({ page }) => {
+  await page.route('**/api/analyze', (route) => route.abort('connectionrefused'))
+
+  await page.goto('/workspace')
+  await page.getByLabel(/^Audio file/).setInputFiles({ name: 'talk.wav', mimeType: 'audio/wav', buffer: wavFile() })
+  await page.getByRole('button', { name: 'Run analysis' }).click()
+
+  await expect(page.getByRole('alert')).toContainText('Can’t reach the analysis backend')
 })

@@ -3,7 +3,7 @@ import { detectWebGL } from '../../lib/webgl'
 import { ErrorBoundary } from '../ErrorBoundary'
 import { LoadingState } from '../ui'
 import { TwinFallback2D } from './TwinFallback2D'
-import { twinLegend, type TwinProps } from './twinData'
+import type { TwinProps } from './twinData'
 
 const TwinScene = lazy(() => import('./TwinScene'))
 
@@ -15,7 +15,7 @@ const toggleClass = (active: boolean) =>
   }`
 
 /** Shows the 3D scene when WebGL works and the 2D view otherwise, or on request. */
-export function AcousticTwin({ analysis, selectedId }: TwinProps) {
+export function AcousticTwin({ data, selectedId }: TwinProps) {
   const [webglAvailable, setWebglAvailable] = useState(detectWebGL)
   const [mode, setMode] = useState<Mode>(webglAvailable ? '3d' : '2d')
   const [sceneFailed, setSceneFailed] = useState(false)
@@ -55,25 +55,25 @@ export function AcousticTwin({ analysis, selectedId }: TwinProps) {
             setSceneFailed(true)
             setWebglAvailable(false)
           }}
-          fallback={<TwinFallback2D analysis={analysis} selectedId={selectedId} />}
+          fallback={<TwinFallback2D data={data} selectedId={selectedId} />}
         >
           <Suspense fallback={<LoadingState label="Loading 3D view…" />}>
             <div
               className="h-[340px] overflow-hidden rounded-lg border border-line sm:h-[460px]"
               role="img"
-              aria-label="3D Acoustic Twin. Bar height shows relative energy over time; the front row is the participant and the back row is the baseline. Switch to the 2D view for a data table."
+              aria-label={`3D Acoustic Twin. ${data.summary} Switch to the 2D view for a data table.`}
             >
-              <TwinScene analysis={analysis} selectedId={selectedId} />
+              <TwinScene data={data} selectedId={selectedId} />
             </div>
             <p className="mt-2 text-xs text-muted">Drag to orbit, scroll to zoom. The view only moves when you move it.</p>
           </Suspense>
         </ErrorBoundary>
       ) : (
-        <TwinFallback2D analysis={analysis} selectedId={selectedId} />
+        <TwinFallback2D data={data} selectedId={selectedId} />
       )}
 
       <ul className="mt-4 flex flex-wrap gap-x-5 gap-y-2 text-xs text-muted" aria-label="Legend">
-        {twinLegend.map((item) => (
+        {data.legend.map((item) => (
           <li key={item.label} className="inline-flex items-center gap-2">
             <span aria-hidden="true" className="h-2.5 w-2.5 rounded-sm" style={{ background: item.color }} />
             {item.label}

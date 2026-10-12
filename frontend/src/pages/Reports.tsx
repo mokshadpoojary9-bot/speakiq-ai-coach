@@ -1,4 +1,5 @@
 import { AnalysisGate } from '../components/AnalysisGate'
+import { DemoOnlyNotice } from '../components/SourceSwitch'
 import { btnSecondary, Card, DemoBadge, EvidenceKindBadge, PageHeader, SeverityBadge } from '../components/ui'
 import { formatInterval, formatPercent, formatTime } from '../lib/format'
 import { severityLabel } from '../lib/theme'
@@ -111,6 +112,9 @@ export default function Reports() {
             Print or save as PDF
           </button>
         </PageHeader>
+      </div>
+      <div className="print:hidden">
+        <DemoOnlyNotice feature="report generation" />
       </div>
       <AnalysisGate>{(analysis) => <ReportPreview analysis={analysis} />}</AnalysisGate>
     </>

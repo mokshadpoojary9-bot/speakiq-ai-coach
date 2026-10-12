@@ -24,10 +24,10 @@ describe('App shell and navigation', () => {
     }
   })
 
-  it('states on the landing page that analysis views use demo data', () => {
+  it('states on the landing page what is real and what is still demo data', () => {
     renderAt('/')
 
-    expect(screen.getByText(/analysis engine is not connected yet/i)).toBeInTheDocument()
+    expect(screen.getByText(/flaw detection and coaching are not built\s+yet/i)).toBeInTheDocument()
   })
 
   it('navigates to each page and marks the active link', async () => {
@@ -36,7 +36,7 @@ describe('App shell and navigation', () => {
     const nav = screen.getByRole('navigation', { name: 'Primary' })
 
     const pages: Array<[string, string]> = [
-      ['Workspace', 'Prepare a recording'],
+      ['Workspace', 'Analyse a recording'],
       ['Dashboard', 'Analysis'],
       ['Acoustic Twin', 'Your delivery, side by side with the baseline'],
       ['Evidence Coach', 'Advice you can trace back'],

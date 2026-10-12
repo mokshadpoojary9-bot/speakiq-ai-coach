@@ -1,24 +1,52 @@
 import { Line, OrbitControls } from '@react-three/drei'
 import { Canvas } from '@react-three/fiber'
-import { colors, severityColor } from '../../lib/theme'
-import { energyToUnit, participantColor, type TwinProps } from './twinData'
+import { colors } from '../../lib/theme'
+import { barColor, type TwinFrame, type TwinProps } from './twinData'
 
 const WIDTH = 12
 const MAX_HEIGHT = 2.6
 const ROW_Z = 0.7
 const PITCH_SCALE = 0.18
+// Drawing limit only: tracking outliers beyond an octave would leave the view. The data table keeps real values.
+const PITCH_DRAW_LIMIT_ST = 12
+
+type Point = [number, number, number]
+
+/** Splits a contour into runs of consecutive frames that have a value, so gaps stay gaps. */
+function contourRuns(frames: TwinFrame[], value: (frame: TwinFrame) => number | null | undefined, point: (frame: TwinFrame, v: number) => Point): Point[][] {
+  const runs: Point[][] = []
+  let current: Point[] = []
+  for (const frame of frames) {
+    const v = value(frame)
+    if (v === null || v === undefined) {
+      if (current.length > 1) runs.push(current)
+      current = []
+    } else {
+      current.push(point(frame, v))
+    }
+  }
+  if (current.length > 1) runs.push(current)
+  return runs
+}
 
 /**
- * 3D view of the supplied analysis frames. X is time, bar height is relative energy,
- * the front row is the participant and the back row is the baseline, and the lines
- * floating above each row trace the pitch contour. Nothing here is animated or simulated.
+ * 3D view of the supplied frames. X is time and bar height is energy. With a baseline, the
+ * participant is the front row and the baseline the back row. The lines above trace the pitch
+ * contour where one exists. Nothing here is animated or simulated.
  */
-export default function TwinScene({ analysis, selectedId }: TwinProps) {
-  const { frames, findings, durationSec } = analysis
+export default function TwinScene({ data, selectedId }: TwinProps) {
+  const { frames, intervals, durationSec, stepSec, hasBaseline } = data
   const x = (t: number) => (t / durationSec - 0.5) * WIDTH
-  const step = frames.length > 1 ? frames[1].t - frames[0].t : durationSec
-  const barWidth = (step / durationSec) * WIDTH * 0.72
-  const pitchY = (semitones: number) => MAX_HEIGHT + 0.9 + semitones * PITCH_SCALE
+  const barWidth = (stepSec / durationSec) * WIDTH * 0.72
+  const frontZ = hasBaseline ? ROW_Z : 0
+  const pitchY = (semitones: number) =>
+    MAX_HEIGHT + 0.9 + Math.max(-PITCH_DRAW_LIMIT_ST, Math.min(PITCH_DRAW_LIMIT_ST, semitones)) * PITCH_SCALE
+  const centre = (frame: TwinFrame) => x(frame.t + stepSec / 2)
+
+  const pitchRuns = contourRuns(frames, (f) => f.pitch, (f, v) => [centre(f), pitchY(v), frontZ])
+  const baselinePitchRuns = hasBaseline
+    ? contourRuns(frames, (f) => f.baselinePitch, (f, v) => [centre(f), pitchY(v), -ROW_Z])
+    : []
 
   return (
     <Canvas frameloop="demand" dpr={[1, 2]} camera={{ position: [0, 5.2, 10.5], fov: 40 }}>
@@ -28,48 +56,43 @@ export default function TwinScene({ analysis, selectedId }: TwinProps) {
       <gridHelper args={[WIDTH + 2, 14, colors.line, colors.line]} />
 
       {frames.map((frame) => {
-        const cx = x(frame.t + step / 2)
-        const participantH = energyToUnit(frame.participantEnergy) * MAX_HEIGHT
-        const baselineH = energyToUnit(frame.baselineEnergy) * MAX_HEIGHT
+        const height = frame.energyUnit === null ? null : frame.energyUnit * MAX_HEIGHT
+        const baselineHeight = frame.baselineEnergyUnit === undefined ? null : frame.baselineEnergyUnit * MAX_HEIGHT
         return (
           <group key={frame.t}>
-            <mesh position={[cx, participantH / 2, ROW_Z]}>
-              <boxGeometry args={[barWidth, participantH, 0.5]} />
-              <meshStandardMaterial color={participantColor(findings, frame.t)} roughness={0.55} />
-            </mesh>
-            <mesh position={[cx, baselineH / 2, -ROW_Z]}>
-              <boxGeometry args={[barWidth, baselineH, 0.5]} />
-              <meshStandardMaterial color={colors.baseline} roughness={0.8} />
-            </mesh>
+            {height !== null && (
+              <mesh position={[centre(frame), height / 2, frontZ]}>
+                <boxGeometry args={[barWidth, height, 0.5]} />
+                <meshStandardMaterial color={barColor(data, frame.t)} roughness={0.55} />
+              </mesh>
+            )}
+            {baselineHeight !== null && (
+              <mesh position={[centre(frame), baselineHeight / 2, -ROW_Z]}>
+                <boxGeometry args={[barWidth, baselineHeight, 0.5]} />
+                <meshStandardMaterial color={colors.baseline} roughness={0.8} />
+              </mesh>
+            )}
           </group>
         )
       })}
 
-      <Line
-        points={frames.map((f) => [x(f.t + step / 2), pitchY(f.participantPitch), ROW_Z] as [number, number, number])}
-        color={colors.fg}
-        lineWidth={2}
-      />
-      <Line
-        points={frames.map((f) => [x(f.t + step / 2), pitchY(f.baselinePitch), -ROW_Z] as [number, number, number])}
-        color={colors.baseline}
-        lineWidth={1.5}
-        dashed
-        dashSize={0.18}
-        gapSize={0.12}
-      />
+      {pitchRuns.map((points, i) => (
+        <Line key={`pitch-${i}`} points={points} color={colors.fg} lineWidth={2} />
+      ))}
+      {baselinePitchRuns.map((points, i) => (
+        <Line key={`baseline-pitch-${i}`} points={points} color={colors.baseline} lineWidth={1.5} dashed dashSize={0.18} gapSize={0.12} />
+      ))}
 
-      {findings.map((finding) => {
-        const start = x(finding.interval.start)
-        const end = x(finding.interval.end)
-        const selected = finding.id === selectedId
+      {intervals.map((interval) => {
+        const start = x(interval.start)
+        const end = x(interval.end)
         return (
-          <mesh key={finding.id} position={[(start + end) / 2, 0.01, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+          <mesh key={interval.id} position={[(start + end) / 2, 0.01, 0]} rotation={[-Math.PI / 2, 0, 0]}>
             <planeGeometry args={[end - start, ROW_Z * 2 + 1.2]} />
             <meshBasicMaterial
-              color={severityColor[finding.severity]}
+              color={interval.color}
               transparent
-              opacity={selected ? 0.5 : 0.16}
+              opacity={interval.id === selectedId ? 0.5 : 0.16}
               depthWrite={false}
             />
           </mesh>

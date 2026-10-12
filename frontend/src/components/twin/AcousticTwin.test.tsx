@@ -4,7 +4,9 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { demoAnalysis } from '../../fixtures/demoAnalysis'
 import * as webgl from '../../lib/webgl'
 import { AcousticTwin } from './AcousticTwin'
-import { energyToUnit, findingAt } from './twinData'
+import { energyToUnit, intervalAt, twinFromDemo } from './twinData'
+
+const demoTwin = twinFromDemo(demoAnalysis)
 
 vi.mock('../../lib/webgl')
 vi.mock('./TwinScene', () => ({ default: () => <div data-testid="twin-scene-3d" /> }))
@@ -14,7 +16,7 @@ afterEach(() => vi.resetAllMocks())
 describe('AcousticTwin', () => {
   it('falls back to the 2D view and says why when WebGL is unavailable', () => {
     vi.mocked(webgl.detectWebGL).mockReturnValue(false)
-    render(<AcousticTwin analysis={demoAnalysis} selectedId={null} />)
+    render(<AcousticTwin data={demoTwin} selectedId={null} />)
 
     expect(screen.getByRole('status')).toHaveTextContent(/WebGL is not available/)
     expect(screen.getByRole('img', { name: /2D Acoustic Twin/ })).toBeInTheDocument()
@@ -24,17 +26,18 @@ describe('AcousticTwin', () => {
 
   it('exposes every supplied frame in the fallback data table', () => {
     vi.mocked(webgl.detectWebGL).mockReturnValue(false)
-    render(<AcousticTwin analysis={demoAnalysis} selectedId={null} />)
+    render(<AcousticTwin data={demoTwin} selectedId={null} />)
 
     const table = screen.getByRole('table', { hidden: true })
     const bodyRows = within(table).getAllByRole('row', { hidden: true }).slice(1)
     expect(bodyRows).toHaveLength(demoAnalysis.frames.length)
     expect(bodyRows[0]).toHaveTextContent(demoAnalysis.frames[0].participantEnergy.toFixed(1))
+    expect(within(table).getByRole('columnheader', { name: /Baseline energy/, hidden: true })).toBeInTheDocument()
   })
 
   it('shows the 3D scene when WebGL is available and lets the user switch to 2D', async () => {
     vi.mocked(webgl.detectWebGL).mockReturnValue(true)
-    render(<AcousticTwin analysis={demoAnalysis} selectedId={null} />)
+    render(<AcousticTwin data={demoTwin} selectedId={null} />)
 
     expect(await screen.findByTestId('twin-scene-3d')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: '3D view' })).toHaveAttribute('aria-pressed', 'true')
@@ -54,7 +57,7 @@ describe('twin data mapping', () => {
   })
 
   it('finds the flaw interval containing a time', () => {
-    expect(findingAt(demoAnalysis.findings, 5)?.id).toBe('f-pace')
-    expect(findingAt(demoAnalysis.findings, 1)).toBeUndefined()
+    expect(intervalAt(demoTwin.intervals, 5)?.id).toBe('f-pace')
+    expect(intervalAt(demoTwin.intervals, 1)).toBeUndefined()
   })
 })

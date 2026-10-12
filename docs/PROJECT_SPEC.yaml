@@ -191,4 +191,16 @@ milestones:
       - "URL configuration: local backend at http://127.0.0.1:8000; frontend reads VITE_API_BASE_URL from frontend/.env.local, with a placeholder in frontend/.env.example. No secrets in frontend env files. Do not hardcode the URL through the source. Backend CORS allows the local frontend origin."
       - "Tests: mocked tests needing no internet, private tokens or large model downloads, covering invalid audio, missing configuration, successful mocked transcription, and alignment errors."
       - "Update the README with installation, model setup, environment variables, API routes and troubleshooting."
+  - id: 4.5
+    name: "Real frontend-backend integration"
+    source: "Summarised from the owner's Milestone 4.5 build prompt, which was received in full."
+    tasks:
+      - "Connect the React frontend to the FastAPI backend so the dashboard uses real backend results instead of presenting demo fixtures as live analysis. Reuse existing endpoints."
+      - "Configure the API client through VITE_API_BASE_URL in frontend/.env.local (ignored by Git)."
+      - "Connect audio upload to the transcription and analysis endpoints and display the returned transcript and word-level timestamps."
+      - "Provide loading, progress, empty, validation, network-error and backend-unavailable states."
+      - "Keep demo fixtures clearly labelled. Never fabricate timestamps or claim flaw detection or baseline comparison exists before it is implemented."
+      - "Preserve the visual design, charts and 3D Acoustic Twin; integrate real measurements where available with a graceful fallback."
+      - "Verify backend CORS for the local frontend origin; keep HF_TOKEN in the backend only."
+      - "Frontend tests with mocked responses for upload, success, errors and empty results."
   # Milestones 5 and later: not yet supplied by the owner.

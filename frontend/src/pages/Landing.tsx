@@ -23,7 +23,7 @@ const steps = [
   {
     title: 'Upload a recording and its transcript',
     body: 'Bring the audio you want reviewed and the text you were delivering.',
-    status: 'Preview and playback work today',
+    status: 'Works today: real measurements, transcript and word timing',
   },
   {
     title: 'Contrast against a baseline',
@@ -63,8 +63,9 @@ export default function Landing() {
           </Link>
         </div>
         <p className="mt-6 max-w-2xl text-sm text-muted">
-          <strong className="font-medium text-warn">Early build.</strong> The analysis engine is not connected yet. The
-          dashboard, Acoustic Twin, coach and report views run on a clearly labelled demo fixture.
+          <strong className="font-medium text-warn">Early build.</strong> Uploading a recording gives you real acoustic
+          measurements, a transcript and word timing. Baseline comparison, flaw detection and coaching are not built
+          yet; those views run on a clearly labelled demo fixture.
         </p>
       </section>
 

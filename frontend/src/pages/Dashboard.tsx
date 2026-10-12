@@ -2,10 +2,12 @@ import { useState } from 'react'
 import { AnalysisGate } from '../components/AnalysisGate'
 import { FeatureCharts } from '../components/FeatureCharts'
 import { FindingDetail, FindingList } from '../components/Findings'
-import { Card, DemoBadge, EmptyState, PageHeader } from '../components/ui'
+import { RealAnalysisView } from '../components/RealAnalysisView'
+import { SourceSwitch, useSource } from '../components/SourceSwitch'
+import { Card, DemoBadge, EmptyState, LiveBadge, PageHeader } from '../components/ui'
 import { WaveformTimeline } from '../components/WaveformTimeline'
 import { formatPercent, formatTime } from '../lib/format'
-import { severityLabel } from '../lib/theme'
+import { severityColor, severityLabel } from '../lib/theme'
 import type { AnalysisResult, Severity } from '../types'
 
 type Filter = 'all' | Severity
@@ -42,13 +44,20 @@ function DashboardContent({ analysis }: { analysis: AnalysisResult }) {
           Waveform and flaw timeline
         </h2>
         <p className="mt-1 mb-4 text-sm text-muted">
-          Select a shaded interval to inspect it. Playback is available in the workspace for your own files; the demo
-          fixture has no audio.
+          Select a shaded interval to inspect it. The demo fixture has no audio; analyse your own recording in the
+          workspace to get playback and real measurements.
         </p>
         <WaveformTimeline
           peaks={analysis.peaks}
           durationSec={analysis.durationSec}
-          findings={visible}
+          markers={visible.map((f) => ({
+            id: f.id,
+            label: f.title,
+            start: f.interval.start,
+            end: f.interval.end,
+            color: severityColor[f.severity],
+          }))}
+          description={`Demo waveform of the ${formatTime(analysis.durationSec)} sample with ${visible.length} highlighted demo flaw intervals`}
           selectedId={selected?.id ?? null}
           onSelect={setSelectedId}
         />
@@ -99,16 +108,28 @@ function DashboardContent({ analysis }: { analysis: AnalysisResult }) {
 }
 
 export default function Dashboard() {
+  const { source, session, setSource } = useSource()
+  const live = source === 'live' && session !== null
+
   return (
     <>
       <PageHeader
         eyebrow="Dashboard"
         title="Analysis"
-        description="Where delivery departs from the baseline, when it happens, and the evidence for each finding."
+        description={
+          live
+            ? 'Measurements, transcript and word timing returned by the backend for your recording.'
+            : 'Where delivery departs from the baseline, when it happens, and the evidence for each finding.'
+        }
       >
-        <DemoBadge />
+        {live ? <LiveBadge filename={session.result.features.audio.filename} /> : <DemoBadge />}
       </PageHeader>
-      <AnalysisGate>{(analysis) => <DashboardContent analysis={analysis} />}</AnalysisGate>
+      <SourceSwitch source={source} hasSession={session !== null} onChange={setSource} />
+      {live ? (
+        <RealAnalysisView session={session} />
+      ) : (
+        <AnalysisGate>{(analysis) => <DashboardContent analysis={analysis} />}</AnalysisGate>
+      )}
     </>
   )
 }

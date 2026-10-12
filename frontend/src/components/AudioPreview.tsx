@@ -6,9 +6,10 @@ import { btnSecondary, ErrorState } from './ui'
 
 /**
  * Real playback and waveform for a file the user picked. The audio is decoded in the
- * browser from an object URL and is never uploaded. Mount with a `key` per file.
+ * browser from an object URL; this component uploads nothing. Mount with a `key` per file.
+ * Change `seek` (a new nonce each time) to jump to a time and play.
  */
-export function AudioPreview({ file }: { file: File }) {
+export function AudioPreview({ file, seek = null }: { file: File; seek?: { time: number; nonce: number } | null }) {
   const containerRef = useRef<HTMLDivElement>(null)
   const playerRef = useRef<WaveSurfer | null>(null)
   const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading')
@@ -44,6 +45,14 @@ export function AudioPreview({ file }: { file: File }) {
       URL.revokeObjectURL(url)
     }
   }, [file])
+
+  // Jump to a requested time and play from there, e.g. when a transcript word is chosen.
+  useEffect(() => {
+    if (seek && status === 'ready') {
+      playerRef.current?.setTime(seek.time)
+      void playerRef.current?.play()
+    }
+  }, [seek, status])
 
   if (status === 'error') {
     return (
