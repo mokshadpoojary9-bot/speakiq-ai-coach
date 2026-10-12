@@ -4,10 +4,10 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 
-REPO_ROOT = Path(__file__).resolve().parents[2]
+BACKEND_ROOT = Path(__file__).resolve().parents[1]
 
-# Optional local configuration; a missing .env is fine.
-load_dotenv(REPO_ROOT / ".env")
+# Optional local configuration and secrets; a missing file is fine. Real environment variables win.
+load_dotenv(BACKEND_ROOT / ".env")
 
 DEFAULT_CORS_ORIGINS = "http://localhost:5173,http://127.0.0.1:5173"
 
@@ -16,15 +16,28 @@ def _split_csv(value: str) -> list[str]:
     return [item.strip() for item in value.split(",") if item.strip()]
 
 
+def _env(name: str, default: str | None = None) -> str | None:
+    """Environment value, treating empty strings (such as `HF_TOKEN=`) as unset."""
+    return os.getenv(name, "").strip() or default
+
+
 @dataclass(frozen=True)
 class Settings:
     service_name: str = "speakiq-ai-coach-backend"
-    environment: str = field(default_factory=lambda: os.getenv("APP_ENV", "development"))
+    environment: str = field(default_factory=lambda: _env("APP_ENV", "development"))
     cors_origins: list[str] = field(
-        default_factory=lambda: _split_csv(os.getenv("BACKEND_CORS_ORIGINS", DEFAULT_CORS_ORIGINS))
+        default_factory=lambda: _split_csv(_env("BACKEND_CORS_ORIGINS", DEFAULT_CORS_ORIGINS))
     )
-    max_upload_mb: float = field(default_factory=lambda: float(os.getenv("MAX_UPLOAD_MB", "25")))
-    max_audio_seconds: float = field(default_factory=lambda: float(os.getenv("MAX_AUDIO_SECONDS", "300")))
+    max_upload_mb: float = field(default_factory=lambda: float(_env("MAX_UPLOAD_MB", "25")))
+    max_audio_seconds: float = field(default_factory=lambda: float(_env("MAX_AUDIO_SECONDS", "300")))
+
+    whisper_model: str = field(default_factory=lambda: _env("WHISPER_MODEL", "base"))
+    whisper_device: str = field(default_factory=lambda: _env("WHISPER_DEVICE", "cpu"))
+    whisper_compute_type: str = field(default_factory=lambda: _env("WHISPER_COMPUTE_TYPE", "int8"))
+    whisper_language: str | None = field(default_factory=lambda: _env("WHISPER_LANGUAGE"))
+    whisper_download_root: str | None = field(default_factory=lambda: _env("WHISPER_DOWNLOAD_ROOT"))
+    # Secret. Excluded from repr so it cannot end up in logs or tracebacks. Never return it from the API.
+    hf_token: str | None = field(default_factory=lambda: _env("HF_TOKEN"), repr=False)
 
     @property
     def max_upload_bytes(self) -> int:

@@ -12,7 +12,7 @@ client = TestClient(create_app(Settings()))
 
 def post(data: bytes, filename: str = "talk.wav", transcript: str | None = None, api: TestClient = client):
     form = {"transcript": transcript} if transcript is not None else None
-    return api.post("/analysis/features", files={"file": (filename, data, "application/octet-stream")}, data=form)
+    return api.post("/api/features", files={"file": (filename, data, "application/octet-stream")}, data=form)
 
 
 def test_returns_real_measurements_for_a_wav_upload():
@@ -47,7 +47,8 @@ def test_rejects_unsupported_and_undecodable_files():
     assert post(b"hello", filename="notes.pdf").status_code == 415
     undecodable = post(b"RIFF this is not really a wav file", filename="talk.wav")
     assert undecodable.status_code == 415
-    assert "could not be decoded" in undecodable.json()["detail"]
+    assert undecodable.json()["detail"]["code"] == "undecodable_audio"
+    assert "could not be decoded" in undecodable.json()["detail"]["message"]
 
 
 def test_rejects_uploads_over_the_size_limit():
@@ -56,7 +57,8 @@ def test_rejects_uploads_over_the_size_limit():
     response = post(encode(tone(220, 2.0)), api=small)
 
     assert response.status_code == 413
-    assert "0.01 MB" in response.json()["detail"]
+    assert response.json()["detail"]["code"] == "upload_too_large"
+    assert "0.01 MB" in response.json()["detail"]["message"]
 
 
 def test_rejects_recordings_over_the_duration_limit():
@@ -70,7 +72,7 @@ def test_rejects_recordings_that_are_too_short():
 
 
 def test_requires_a_file():
-    assert client.post("/analysis/features", data={"transcript": "hello"}).status_code == 422
+    assert client.post("/api/features", data={"transcript": "hello"}).status_code == 422
 
 
 def test_rejects_an_oversized_transcript():

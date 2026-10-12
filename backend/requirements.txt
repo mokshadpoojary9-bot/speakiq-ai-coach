@@ -8,3 +8,6 @@ scipy>=1.13
 soundfile>=0.13
 librosa>=0.11
 praat-parselmouth>=0.4.5
+faster-whisper>=1.1
+# Windows: a current Microsoft C++ runtime for the transcription engine (see app/_windows_runtime.py).
+msvc-runtime>=14.40; sys_platform == "win32"

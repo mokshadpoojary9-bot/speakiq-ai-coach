@@ -120,6 +120,6 @@ def transcript_rate(transcript: str | None, duration_sec: float) -> TranscriptRa
         word_count=len(words),
         words_per_minute=round(len(words) / duration_sec * 60, 1),
         limitations=[
-            "Assumes the transcript matches what was said; this is not checked, because transcription and forced alignment are not implemented.",
+            "Assumes the transcript matches what was said; this is not checked here. Use the alignment result to see which words were actually recognised.",
         ],
     )

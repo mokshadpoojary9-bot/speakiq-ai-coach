@@ -1,5 +1,5 @@
 from .loading import SUPPORTED_EXTENSIONS, AudioError, LoadedAudio, load_audio
-from .pipeline import analyze_upload, extract_features
+from .pipeline import extract_features
 from .schemas import AudioFeatures
 
 __all__ = [
@@ -7,7 +7,6 @@ __all__ = [
     "AudioError",
     "AudioFeatures",
     "LoadedAudio",
-    "analyze_upload",
     "extract_features",
     "load_audio",
 ]

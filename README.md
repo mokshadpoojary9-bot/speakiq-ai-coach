@@ -8,26 +8,24 @@ The full specification lives in [`docs/PROJECT_SPEC.yaml`](docs/PROJECT_SPEC.yam
 
 | Area | State |
 | --- | --- |
-| Backend `GET /health` | Working |
+| Backend API: health, acoustic features, transcription, word alignment, combined analysis | Working (see [API](#api)) |
+| Local transcription with faster-whisper | Working; no Hugging Face token needed for the default model |
 | Frontend pages: landing, workspace, dashboard, Acoustic Twin, Evidence Coach, reports | Working |
-| Audio file validation, playback and waveform in the workspace | Working, in the browser only (nothing is uploaded) |
-| Acoustic Twin 3D view with 2D fallback and data table | Working, showing the demo fixture |
-| Findings, charts, coaching text and report content | **Demo fixture** (`frontend/src/fixtures/demoAnalysis.ts`), not computed from audio |
-| Backend `POST /analysis/features`: real acoustic measurements of an uploaded recording | Working (see below) |
-| Frontend use of the analysis endpoint | Not connected yet; "Run analysis" still reports that analysis is unavailable |
-| Baseline comparison, flaw detection, transcription, forced alignment | Not implemented yet |
-| Free-form coach questions, language model | Not implemented yet |
-| Supabase, hosting | Not connected |
+| Audio file validation, playback and waveform in the workspace | Working, in the browser only |
+| Frontend use of the analysis API | Not connected yet. Only the backend status indicator calls the API; "Run analysis" still reports that analysis is unavailable |
+| Findings, charts, coaching text and report content in the frontend | **Demo fixture** (`frontend/src/fixtures/demoAnalysis.ts`), not computed from audio |
+| Baseline comparison and flaw detection | Not implemented yet |
+| Free-form coach questions, language model, Supabase, hosting | Not implemented or connected |
 
-Every view that shows fixture data carries a "Demo data — not a real analysis" label.
-
-No paid API keys are needed to run the project locally.
+Every frontend view that shows fixture data carries a "Demo data — not a real analysis" label. No paid API keys are needed to run the project locally.
 
 ## Repository layout
 
 ```
 frontend/   React + Vite + TypeScript + Tailwind CSS
 backend/    Python + FastAPI
+  app/audio/    acoustic feature extraction
+  app/speech/   transcription and word alignment
 docs/       Project specification
 ```
 
@@ -35,24 +33,7 @@ docs/       Project specification
 
 - Node.js 20 or newer (developed on 24) and npm
 - Python 3.11 or newer (developed on 3.14)
-
-## Environment setup
-
-Configuration is optional; the defaults work for local development.
-
-```powershell
-Copy-Item .env.example .env
-```
-
-| Variable | Used by | Default | Purpose |
-| --- | --- | --- | --- |
-| `APP_ENV` | backend | `development` | Reported by `/health` |
-| `BACKEND_CORS_ORIGINS` | backend | `http://localhost:5173,http://127.0.0.1:5173` | Browser origins allowed to call the API |
-| `MAX_UPLOAD_MB` | backend | `25` | Largest accepted upload |
-| `MAX_AUDIO_SECONDS` | backend | `300` | Longest accepted recording |
-| `VITE_API_BASE_URL` | frontend | `http://localhost:8000` | Where the frontend finds the API |
-
-`.env` is ignored by Git. `VITE_*` values are compiled into the public client bundle, so never put a secret in one.
+- About 150 MB of disk space and an internet connection for the one-time transcription model download
 
 ## Backend
 
@@ -67,19 +48,84 @@ uvicorn app.main:app --reload --port 8000
 
 On macOS or Linux, activate with `source .venv/bin/activate` instead.
 
-- Health check: http://localhost:8000/health
-- Interactive API docs: http://localhost:8000/docs
-- Tests: `pytest`
+- Health check: http://127.0.0.1:8000/api/health
+- Interactive API docs (Swagger UI): http://127.0.0.1:8000/docs
+- OpenAPI schema: http://127.0.0.1:8000/openapi.json
+- Tests: `pytest` (mocked; no internet, token or model download needed)
 
-### Audio feature extraction
+### Model setup
 
-`POST /analysis/features` takes a multipart form with `file` (WAV, FLAC, OGG or MP3) and an optional `transcript`, and returns measurements synchronously. The upload is processed in memory and is not stored.
+Transcription runs locally with [faster-whisper](https://github.com/SYSTRAN/faster-whisper). The default model is `base` (about 145 MB), a public model that downloads **without a Hugging Face token**. It is fetched automatically on the first transcription request, which makes that request slow. To download it ahead of time:
 
 ```powershell
-curl.exe -F "file=@talk.wav" -F "transcript=Good morning everyone" http://localhost:8000/analysis/features
+python -m app.speech.prefetch
 ```
 
-Every metric carries a `status`, the `method` used and its `limitations`:
+Larger models (`small`, `medium`, `large-v3`) are more accurate and slower; set `WHISPER_MODEL` to change it.
+
+### Backend environment variables
+
+All optional. Copy `backend/.env.example` to `backend/.env` to change them. `backend/.env` is ignored by Git.
+
+| Variable | Default | Purpose |
+| --- | --- | --- |
+| `APP_ENV` | `development` | Reported by `/api/health` |
+| `BACKEND_CORS_ORIGINS` | `http://localhost:5173,http://127.0.0.1:5173` | Browser origins allowed to call the API |
+| `MAX_UPLOAD_MB` | `25` | Largest accepted upload |
+| `MAX_AUDIO_SECONDS` | `300` | Longest accepted recording |
+| `WHISPER_MODEL` | `base` | faster-whisper model name or Hugging Face repository |
+| `WHISPER_DEVICE` | `cpu` | `cpu` or `cuda` |
+| `WHISPER_COMPUTE_TYPE` | `int8` | For example `int8`, `float32` |
+| `WHISPER_LANGUAGE` | empty (auto-detect) | Force a language code such as `en` |
+| `WHISPER_DOWNLOAD_ROOT` | empty (Hugging Face cache) | Where to store the model |
+| `HF_TOKEN` | empty | **Secret.** Only needed if `WHISPER_MODEL` points at a private or gated repository |
+
+`HF_TOKEN` is read only by the backend, is never returned by the API (`/api/health` reports only whether one is configured) and must never be put in the frontend.
+
+## Frontend
+
+From `frontend/`:
+
+```powershell
+npm install
+Copy-Item .env.example .env.local
+npm run dev
+```
+
+- App: http://localhost:5173
+- Unit and component tests: `npm test`
+- Production build: `npm run build` (output in `frontend/dist/`)
+- End-to-end tests: `npm run test:e2e` (builds, then drives the installed Microsoft Edge with Playwright; set `PW_CHANNEL=chrome` to use Chrome)
+
+| Variable | Default | Purpose |
+| --- | --- | --- |
+| `VITE_API_BASE_URL` | `http://127.0.0.1:8000` | Backend address. Set it in `frontend/.env.local` for development, or in the host's build settings for deployment |
+
+`VITE_*` values are compiled into the public browser bundle, so this file must only ever hold the backend URL, never a secret. `frontend/.env.local` is ignored by Git.
+
+Run the backend and the frontend in two separate terminals. The frontend footer shows whether it can reach the backend.
+
+## API
+
+All routes are under `/api`. Upload routes take a multipart form with `file` (WAV, FLAC, OGG or MP3). Uploads are processed in memory and not stored. All times are in seconds.
+
+| Route | Form fields | Returns |
+| --- | --- | --- |
+| `GET /api/health` | — | Status, version, upload limits, and transcription engine status |
+| `POST /api/features` | `file`, optional `transcript` | Acoustic measurements |
+| `POST /api/transcribe` | `file`, optional `language` | Text, segments and word timestamps |
+| `POST /api/align` | `file`, optional `transcript`, optional `language` | Start and end time for each transcript word |
+| `POST /api/analyze` | `file`, optional `transcript`, optional `language` | Features, transcription and alignment together |
+
+```powershell
+curl.exe -F "file=@talk.wav" -F "transcript=Good morning everyone" http://127.0.0.1:8000/api/analyze
+```
+
+Errors always have the shape `{"detail": {"code": "...", "message": "..."}}`. Common codes: `empty_upload`, `unsupported_audio`, `undecodable_audio`, `audio_too_short`, `audio_too_long`, `upload_too_large`, `invalid_request`, `missing_dependency`, `model_download_failed`, `model_load_failed`, `hf_auth_required`, `hf_auth_rejected`, `transcription_failed`, `empty_transcript`, `no_word_timestamps`.
+
+### Acoustic features (`/api/features`)
+
+Every metric carries a `status`, the `method` used and its `limitations`.
 
 | Metric | Status | How |
 | --- | --- | --- |
@@ -91,22 +137,41 @@ Every metric carries a `status`, the `method` used and its `limitations`:
 | F0 / pitch contour | measured | Praat via Parselmouth, falling back to librosa pYIN; `unavailable` if neither runs |
 | Pause intervals | measured | Silence more than 25 dB below the loudest frame for at least 0.25 s |
 | Speaking rate (syllables per second) | **estimated** | Energy-peak syllable nuclei; not validated against hand counts |
-| Words per minute | **estimated** | Transcript word count over duration; assumes the transcript matches the audio |
+| Words per minute | **estimated** | Transcript word count over duration |
 
-Times are in seconds. Frame series longer than 3000 points are thinned and report their actual hop. M4A and WebM play in the browser workspace but are not decoded by the backend.
+Frame series longer than 3000 points are thinned and report their actual hop.
 
-## Frontend
+### Transcription (`/api/transcribe`)
 
-From `frontend/`:
+Returns the recognised text, segments, and for each word its start, end and the model's own probability. `status` is `no_speech` when nothing was recognised, and `word_timestamps` is `unavailable` if the model returned text without word times. The text is a model's best guess and can contain errors.
 
-```powershell
-npm install
-npm run dev
-```
+### Alignment (`/api/align`)
 
-- App: http://localhost:5173
-- Unit and component tests: `npm test`
-- Production build: `npm run build` (output in `frontend/dist/`)
-- End-to-end tests: `npm run test:e2e` (builds, then drives the installed Microsoft Edge with Playwright; set `PW_CHANNEL=chrome` to use Chrome)
+Gives each word of your transcript a status:
 
-Run the backend and the frontend in two separate terminals. The frontend shows whether it can reach the backend.
+- `aligned`: the word was recognised at that position; the times are for that word.
+- `substituted`: a different word was recognised in its place (`recognized_as`); the times are for the recognised word.
+- `unaligned`: nothing could be matched; `start` and `end` are null rather than guessed.
+
+Words the recogniser heard that are not in the transcript are listed in `unmatched_recognized`. If no transcript is sent, the recognised text is aligned to itself (`transcript_source: "transcribed"`).
+
+**Method and limits.** The recording is transcribed with word timestamps, then transcript words are matched in order to recognised words. This is not phoneme-level acoustic forced alignment: a word the recogniser misses gets no time, different spellings such as "3" and "three" do not match, and timing is accurate to roughly a tenth of a second.
+
+### Combined analysis (`/api/analyze`)
+
+Runs all three. Acoustic features are always returned for valid audio. If transcription or alignment cannot run, that part is `null` and `components` gives its `status`, `code` and `message`, so a missing model never blocks the acoustic measurements.
+
+## Troubleshooting
+
+| Symptom | Cause and fix |
+| --- | --- |
+| Frontend footer says "Backend not reachable" | Start the backend, and check that `VITE_API_BASE_URL` in `frontend/.env.local` matches its address. Restart `npm run dev` after editing env files |
+| Browser console shows a CORS error | Add the frontend's origin to `BACKEND_CORS_ORIGINS` and restart the backend |
+| First transcription request is very slow | The model is downloading. Run `python -m app.speech.prefetch` once |
+| `model_download_failed` | No internet connection while the model is not yet cached. Go online and run the prefetch command |
+| `hf_auth_required` | `WHISPER_MODEL` points at a private or gated repository. Set `HF_TOKEN` in `backend/.env`, or switch back to a public model such as `base` |
+| `hf_auth_rejected` | The configured `HF_TOKEN` is invalid or lacks access to the model |
+| `missing_dependency` | Run `pip install -r requirements.txt` inside the backend virtual environment |
+| `model_load_failed` | Check `WHISPER_MODEL`, `WHISPER_DEVICE` and `WHISPER_COMPUTE_TYPE`. `cuda` needs an NVIDIA GPU with CUDA libraries |
+| Windows: the backend process exits abruptly on the first transcription | An old system Microsoft C++ runtime. `requirements.txt` installs the `msvc-runtime` package to work around this; make sure it is installed in the virtual environment, or install the latest "Microsoft Visual C++ Redistributable (x64)" |
+| `unsupported_audio` for M4A or WebM | The backend decodes WAV, FLAC, OGG and MP3 only. Convert the file first |

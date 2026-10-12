@@ -23,7 +23,16 @@ SpeakIQ AI Coach — evidence-first speech delivery analysis with temporally gro
 - `backend/` — Python + FastAPI
 - `docs/` — specification and documentation
 - `data/` — dataset (not created yet)
-- `backend/app/audio/` — real feature extraction (`loading`, `features`, `pitch`, `timing`, `pipeline`, `schemas`), served by `POST /analysis/features`. Each metric reports `status` (`measured` / `estimated` / `unavailable`), `method` and `limitations`; keep that contract for new metrics. The frontend does not call this endpoint yet.
+- `backend/app/audio/` — real feature extraction (`loading`, `features`, `pitch`, `timing`, `pipeline`, `schemas`). Each metric reports `status` (`measured` / `estimated` / `unavailable`), `method` and `limitations`; keep that contract for new metrics.
+- `backend/app/speech/` — local transcription (faster-whisper, loaded lazily) and transcript-to-recognition word alignment. Unmatched words get null times; never interpolate or invent them.
+- API routes live under `/api` in `backend/app/main.py`: `health`, `features`, `transcribe`, `align`, `analyze`. Errors are `{"detail": {"code", "message"}}`. The frontend only calls `/api/health` so far.
+
+## Configuration and secrets
+
+- Backend config: `backend/.env` (ignored), documented in `backend/.env.example`. `HF_TOKEN` is optional (the default public Whisper model needs none), backend-only, excluded from `Settings` repr, and must never be logged, returned by the API, or placed in any `VITE_*` variable.
+- Frontend config: `frontend/.env.local` (ignored) holds only `VITE_API_BASE_URL`; read it through `frontend/src/lib/api.ts` rather than hardcoding URLs.
+- Backend tests must stay offline: use the fakes in `backend/tests/speech_fakes.py` instead of loading a real model.
+- Windows: `app/_windows_runtime.py` preloads a current `msvcp140.dll` (from the `msvc-runtime` package) before native imports; without it ctranslate2 segfaults on machines with an old system C++ runtime. Keep that import first in `app/__init__.py`.
 
 All analysis shown in the frontend currently comes from `frontend/src/fixtures/demoAnalysis.ts`. It is hand-authored demo data; keep `isDemo: true` and the `DemoBadge` on every view that uses it until the backend supplies real results.
 
@@ -40,7 +49,8 @@ Frontend (run from `frontend/`):
 Backend (run from `backend/`, PowerShell):
 
 - `python -m venv .venv; .\.venv\Scripts\Activate.ps1; pip install -r requirements-dev.txt`
-- `uvicorn app.main:app --reload --port 8000`
+- `uvicorn app.main:app --reload --port 8000` — API on http://127.0.0.1:8000, Swagger UI at `/docs`
+- `python -m app.speech.prefetch` — download the transcription model once
 - `pytest`
 
 ## Automatic GitHub Commit and Push Policy

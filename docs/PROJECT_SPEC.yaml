@@ -180,4 +180,15 @@ milestones:
       - "Fundamental frequency (F0) and pitch contours."
       - "Silence and pause intervals."
       - "Speaking-rate estimates, clearly [text cut off here]"
-  # Milestones 4 and later: not yet supplied by the owner.
+  - id: 4
+    name: "Speech transcription, forced alignment, Hugging Face and backend API"
+    source: "Summarised from the owner's Milestone 4 build prompt, which was received in full."
+    tasks:
+      - "Speech pipeline: audio upload and validation, transcription with a suitable compatible model, and word-level alignment mapping transcript words to start and end timestamps, in a consistent response format."
+      - "Clear handling of unsupported audio, empty uploads, model failures, missing dependencies, and alignment errors. Prefer practical local inference. Never fabricate transcripts, timestamps, confidence scores, or alignment results; report unavailable components honestly with a clear fallback."
+      - "Hugging Face: check whether the model needs authentication. If it does, read the token only from the backend environment variable HF_TOKEN in backend/.env (ignored by Git), with an empty placeholder in backend/.env.example. Never print, log, or expose the token to the browser or any VITE_ variable."
+      - "Backend API: GET /api/health, POST /api/transcribe, POST /api/align, POST /api/analyze, with Pydantic models, validation, useful error responses and upload limits. Reuse existing routes rather than duplicating them. Document via OpenAPI/Swagger at /docs."
+      - "URL configuration: local backend at http://127.0.0.1:8000; frontend reads VITE_API_BASE_URL from frontend/.env.local, with a placeholder in frontend/.env.example. No secrets in frontend env files. Do not hardcode the URL through the source. Backend CORS allows the local frontend origin."
+      - "Tests: mocked tests needing no internet, private tokens or large model downloads, covering invalid audio, missing configuration, successful mocked transcription, and alignment errors."
+      - "Update the README with installation, model setup, environment variables, API routes and troubleshooting."
+  # Milestones 5 and later: not yet supplied by the owner.
