@@ -12,6 +12,16 @@ export function formatInterval(interval: Interval): string {
   return `${formatTime(interval.start)} – ${formatTime(interval.end)}`
 }
 
+/**
+ * A finding's interval as text, or null when its timestamps cannot be shown: missing, negative,
+ * empty, reversed, or beyond the end of the recording.
+ */
+export function validInterval(start: number, end: number, durationSec?: number): string | null {
+  const usable = Number.isFinite(start) && Number.isFinite(end) && start >= 0 && end > start
+  if (!usable || (durationSec !== undefined && end > durationSec + 0.05)) return null
+  return formatInterval({ start, end })
+}
+
 export function formatPercent(fraction: number): string {
   return `${Math.round(fraction * 100)}%`
 }

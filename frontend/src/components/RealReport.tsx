@@ -1,5 +1,5 @@
 import type { TranscriptInfo } from '../lib/api'
-import { formatTime } from '../lib/format'
+import { formatTime, validInterval } from '../lib/format'
 import type { AnalysisSession } from '../lib/session'
 import { categoryLabel } from './FindingsPanel'
 import { Card, LiveBadge } from './ui'
@@ -10,12 +10,31 @@ const statusLabel = {
   partial: 'Partial',
 } as const
 
-export function describeTranscript(info: TranscriptInfo | null): string {
+/** `undefined` means the backend did not report provenance at all, which is different from there being no transcript. */
+export function describeTranscript(info: TranscriptInfo | null | undefined): string {
+  if (info === undefined) return 'Provenance unknown'
   if (!info || info.source === 'none') return 'No transcript'
   if (info.source === 'machine_generated') return 'Recognised by the speech model; not reviewed'
+  const unverified = '(not independently verified)'
+  if (info.origin) {
+    // The shared text: checked against one recording is not checked against the other.
+    const vouched = info.attested_for ?? []
+    if (vouched.length === 2) return `Provided by you; you stated you checked it against both recordings ${unverified}`
+    if (vouched[0] === 'participant') {
+      return `Provided by you; you stated you checked it against your recording only, so it has not been checked against the reference ${unverified}`
+    }
+    if (vouched[0] === 'reference') {
+      return `Provided by you; you stated you checked it against the reference recording only, so it has not been checked against yours ${unverified}`
+    }
+    return 'Provided by you; not reviewed'
+  }
   return info.review_status === 'user_attested'
-    ? 'Provided by you; you stated you checked it against the recording (not independently verified)'
+    ? `Provided by you; you stated you checked it against the recording ${unverified}`
     : 'Provided by you; not reviewed'
+}
+
+function usedTranscript(result: AnalysisSession['result']): TranscriptInfo | null | undefined {
+  return result.transcripts ? (result.transcripts.shared_for_comparison ?? result.transcripts.participant) : undefined
 }
 
 /** A printable report of one real analysis: only what the backend measured, found and withheld. */
@@ -56,7 +75,7 @@ export function RealReport({ session }: { session: AnalysisSession }) {
           </div>
           <div>
             <dt className="text-xs text-muted">Transcript</dt>
-            <dd>{describeTranscript(result.transcripts.shared_for_comparison ?? result.transcripts.participant)}</dd>
+            <dd>{describeTranscript(usedTranscript(result))}</dd>
           </div>
           <div>
             <dt className="text-xs text-muted">Recording quality</dt>
@@ -87,7 +106,8 @@ export function RealReport({ session }: { session: AnalysisSession }) {
                   {index + 1}. {finding.title}
                 </h4>
                 <p className="mt-1 font-mono text-xs text-muted">
-                  {formatTime(finding.start)} – {formatTime(finding.end)} · {categoryLabel[finding.category]} ·{' '}
+                  {validInterval(finding.start, finding.end, features.audio.duration_sec) ?? 'Interval unavailable'} ·{' '}
+                  {categoryLabel[finding.category]} ·{' '}
                   {finding.severity ? `${finding.severity} difference` : 'no severity'} · {finding.evidence_quality} evidence quality
                 </p>
                 <p className="mt-2 text-sm">{finding.explanation}</p>

@@ -1,5 +1,5 @@
 import type { AnalysisSession } from '../lib/session'
-import { formatTime } from '../lib/format'
+import { validInterval } from '../lib/format'
 import { categoryLabel } from './FindingsPanel'
 import { Badge, Card, EmptyState } from './ui'
 
@@ -52,7 +52,7 @@ export function RealCoach({ session }: { session: AnalysisSession }) {
                   return (
                     finding && (
                       <li key={id} className="rounded-md border border-line bg-ink-900 px-2 py-1 font-mono text-xs text-muted">
-                        {formatTime(finding.start)} – {formatTime(finding.end)}
+                        {validInterval(finding.start, finding.end, result.features.audio.duration_sec) ?? 'interval unavailable'}
                       </li>
                     )
                   )

@@ -97,14 +97,74 @@ describe('Dashboard with a real analysis', () => {
     expect(screen.getByText('Transcript used: Provided by you; not reviewed.')).toBeInTheDocument()
   })
 
-  it('never calls a transcript verified: an attested one is described as the user’s statement', () => {
+  it('never calls a transcript verified, and says which recording the user vouched for', () => {
+    const one = sampleAnalysis()
+    one.transcripts.shared_for_comparison = { ...one.transcripts.shared_for_comparison!, review_status: 'not_reviewed', attested_for: ['participant'] }
+    const view = renderWith(<Dashboard />, one)
+    expect(
+      screen.getByText(
+        'Transcript used: Provided by you; you stated you checked it against your recording only, so it has not been checked against the reference (not independently verified).',
+      ),
+    ).toBeInTheDocument()
+    view.unmount()
+
+    const both = sampleAnalysis()
+    both.transcripts.shared_for_comparison = {
+      ...both.transcripts.shared_for_comparison!,
+      review_status: 'user_attested',
+      attested_for: ['participant', 'reference'],
+    }
+    renderWith(<Dashboard />, both)
+    expect(
+      screen.getByText('Transcript used: Provided by you; you stated you checked it against both recordings (not independently verified).'),
+    ).toBeInTheDocument()
+    expect(screen.queryByText(/human.verified|verified by/i)).not.toBeInTheDocument()
+  })
+
+  it('says the provenance is unknown when the backend did not report it', () => {
     const result = sampleAnalysis()
-    result.transcripts.shared_for_comparison = { ...result.transcripts.shared_for_comparison!, review_status: 'user_attested' }
+    delete (result as Partial<AnalyzeResponse>).transcripts
+    const view = renderWith(<Dashboard />, result)
+    expect(screen.getByText('Transcript used: Provenance unknown.')).toBeInTheDocument()
+    view.unmount()
+
+    renderWith(<Reports />, result)
+    expect(within(screen.getByRole('article', { name: 'Speech delivery report' })).getByText('Provenance unknown')).toBeInTheDocument()
+  })
+
+  it('says how many words you said were not in the transcript, without counting them against you', () => {
+    const result = sampleAnalysis()
+    result.alignment_status = { ...result.alignment_status, unmatched_recognised: { participant: 2, reference: 0 } }
     renderWith(<Dashboard />, result)
 
-    expect(
-      screen.getByText('Transcript used: Provided by you; you stated you checked it against the recording (not independently verified).'),
-    ).toBeInTheDocument()
+    expect(screen.getByText(/2 words heard in your recording are not in the transcript; they were not compared and are not treated as differences\./)).toBeInTheDocument()
+  })
+
+  it('shows a finding’s interval only when its timestamps are valid', () => {
+    const result = sampleAnalysis()
+    result.findings = [
+      result.findings[0],
+      { ...result.findings[0], id: 'broken:1', title: 'Finding with no usable interval', start: 3.0, end: 3.0 },
+      { ...result.findings[0], id: 'broken:2', title: 'Finding past the end of the recording', start: 9.0, end: 12.0 },
+    ]
+    result.coaching![0].finding_ids = result.findings.map((f) => f.id)
+    const view = renderWith(<Dashboard />, result, new File([new Uint8Array(64)], 'talk.wav', { type: 'audio/wav' }))
+
+    // Only the valid finding is drawn on the waveform or offered for playback.
+    expect(screen.getByRole('img', { name: /with 1 finding intervals shaded/ })).toBeInTheDocument()
+    expect(screen.getAllByRole('button', { name: /^Play from / })).toHaveLength(1)
+    // Direct children only: each finding also contains its own list of limitations.
+    const items = Array.from(screen.getByRole('list', { name: 'Findings' }).children) as HTMLElement[]
+    expect(items).toHaveLength(3)
+    expect(items[0]).toHaveTextContent('0:02.0 – 0:02.8')
+    expect(items[1]).toHaveTextContent('Interval unavailable')
+    expect(items[2]).toHaveTextContent('Interval unavailable')
+    expect(items[2]).not.toHaveTextContent('0:09.0')
+    view.unmount()
+
+    renderWith(<Coach />, result)
+    const chips = within(screen.getByRole('list', { name: 'Findings behind this suggestion' })).getAllByRole('listitem')
+    expect(chips.map((c) => c.textContent)).toEqual(['0:02.0 – 0:02.8', 'interval unavailable', 'interval unavailable'])
   })
 
   it('distinguishes a clean result with no supported findings from a partial one', () => {

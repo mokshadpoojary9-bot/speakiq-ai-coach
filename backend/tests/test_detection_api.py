@@ -109,6 +109,7 @@ def test_a_rushed_take_against_a_reference_returns_a_measured_finding():
         "human_verified": False,
         "text": REFERENCE.text,
         "origin": "reference_recognition",
+        "attested_for": [],
     }
     assert body["reference"]["filename"] == "reference.wav"
     assert body["reference"]["signal_quality"]["usable"] is True
@@ -331,12 +332,14 @@ def test_a_users_statement_that_they_checked_the_transcript_is_recorded_as_an_at
     assert plain["participant"]["review_status"] == "not_reviewed"
     assert attested["participant"]["review_status"] == "user_attested"
     assert attested["participant"]["human_verified"] is False
+    # The statement was about the participant recording, so the shared text is not marked reviewed for the comparison.
     assert attested["shared_for_comparison"] | {"text": ""} == {
         "source": "user_provided",
-        "review_status": "user_attested",
+        "review_status": "not_reviewed",
         "human_verified": False,
         "text": "",
         "origin": "participant_transcript",
+        "attested_for": ["participant"],
     }
     # The reference's own text was recognised by the model, so nothing the user said applies to it.
     assert (attested["reference"]["source"], attested["reference"]["review_status"]) == ("machine_generated", "not_reviewed")
@@ -353,7 +356,8 @@ def test_a_reviewed_reference_transcript_is_the_shared_text_and_keeps_its_own_st
     transcripts = analyze(RUSHED, REFERENCE, reference_transcript=REFERENCE.text, reference_transcript_reviewed="true").json()["transcripts"]
 
     assert (transcripts["reference"]["source"], transcripts["reference"]["review_status"]) == ("user_provided", "user_attested")
-    assert (transcripts["shared_for_comparison"]["origin"], transcripts["shared_for_comparison"]["review_status"]) == ("reference_transcript", "user_attested")
+    shared = transcripts["shared_for_comparison"]
+    assert (shared["origin"], shared["review_status"], shared["attested_for"]) == ("reference_transcript", "not_reviewed", ["reference"])
     assert (transcripts["participant"]["source"], transcripts["participant"]["review_status"]) == ("machine_generated", "not_reviewed")
 
 
@@ -383,3 +387,49 @@ def test_coaching_on_a_clipped_recording_carries_a_caution():
     assert all("evidence behind this is weak" in tip["caution"] for tip in body["coaching"])
     reported = {f["id"] for f in body["findings"]}
     assert all(set(tip["finding_ids"]) <= reported for tip in body["coaching"])
+
+
+# --- Outstanding-limitations fix: fair comparison and provenance -----------------------------
+
+
+def test_transcripts_that_differ_only_in_case_and_punctuation_are_the_same_text():
+    shouted = ", ".join(word.upper() for word in REFERENCE.words) + "!"
+    body = analyze(RUSHED, REFERENCE, transcript=REFERENCE.text, reference_transcript=shouted).json()
+
+    assert body["alignment_status"]["status"] == "aligned"
+    assert body["alignment_status"]["words_compared"] == WORDS
+    assert any(f["category"] == "rushed_delivery" for f in body["findings"])
+
+
+def test_a_transcript_vouched_for_on_one_recording_is_not_presented_as_checked_for_both():
+    one = analyze(RUSHED, REFERENCE, transcript=REFERENCE.text, transcript_reviewed="true").json()["transcripts"]
+    both = analyze(
+        RUSHED, REFERENCE, transcript=REFERENCE.text, transcript_reviewed="true",
+        reference_transcript=REFERENCE.text, reference_transcript_reviewed="true",
+    ).json()["transcripts"]  # fmt: skip
+    neither = analyze(RUSHED, REFERENCE, transcript=REFERENCE.text).json()["transcripts"]
+
+    # The user's statement is about the participant recording only; the shared text was not checked against the reference.
+    assert one["participant"]["review_status"] == "user_attested"
+    assert (one["shared_for_comparison"]["review_status"], one["shared_for_comparison"]["attested_for"]) == ("not_reviewed", ["participant"])
+    assert (both["shared_for_comparison"]["review_status"], both["shared_for_comparison"]["attested_for"]) == ("user_attested", ["participant", "reference"])
+    assert (neither["shared_for_comparison"]["review_status"], neither["shared_for_comparison"]["attested_for"]) == ("not_reviewed", [])
+    for transcripts in (one, both, neither):
+        assert all(info["human_verified"] is False for info in transcripts.values())
+
+
+def test_machine_recognised_shared_text_has_nobody_vouching_for_it():
+    shared = analyze(RUSHED, REFERENCE, transcript_reviewed="true").json()["transcripts"]["shared_for_comparison"]
+
+    assert (shared["source"], shared["review_status"], shared["attested_for"]) == ("machine_generated", "not_reviewed", [])
+
+
+def test_unmatched_recognised_words_are_reported_for_both_recordings():
+    model = scripted()
+    heard = list(RUSHED.words)
+    heard[5] = "misheard"
+    model.spoken[len(RUSHED.audio)] = heard
+    status = analyze(RUSHED, REFERENCE, api=client_with(model)).json()["alignment_status"]
+
+    assert status["unmatched_recognised"] == {"participant": 0, "reference": 0}  # a substitution, not an extra word
+    assert status["words_excluded"]["not_recognised_in_participant"] == 1

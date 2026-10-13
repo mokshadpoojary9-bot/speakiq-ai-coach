@@ -34,7 +34,7 @@ SpeakIQ AI Coach — evidence-first speech delivery analysis with temporally gro
 
 - Pitch is tracked in two passes with a speaker-adapted range, plus a stability pass (`audio/pitch.py`). Report `reliability: low` rather than a confident number when octave jumps, too little voicing or an unstable result are seen; pitch rules are then withheld. Compare pitch only in semitones relative to the speaker.
 - Do not add an articulation or clarity rule based on recognition errors or spectral measures: they penalise accent, voice and microphone.
-- Transcripts in API responses: `human_verified` stays false. `review_status: user_attested` is only ever the sender's own statement about text they supplied; never set it for machine-generated text.
+- Transcripts in API responses: `human_verified` stays false. `review_status: user_attested` is only ever the sender's own statement about text they supplied; never set it for machine-generated text. On the shared transcript it means attested for both recordings; `attested_for` lists which.
 - Do not filter compared words by recogniser probability: it was tried and measurably worsened results on the dataset (one fewer correct finding, two more off-label).
 - Pause detection uses `PauseSettings` (`audio/features.py`): a relative threshold in quiet recordings and a noise-floor threshold in noisy ones; `unavailable` when speech cannot be separated from the background.
 - Clipping is measured on decoded samples before mono mixing or resampling (`audio/loading.py`), with verdicts `detected`, `not_detected` or `uncertain`.

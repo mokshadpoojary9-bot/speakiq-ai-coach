@@ -201,7 +201,12 @@ def build_alignment(
         return unavailable(f"The {which} recording has no word alignment, so the recordings cannot be lined up.")
     if [normalize(w.word) for w in ref.words] != [normalize(w.word) for w in par.words]:
         return unavailable("The two recordings were aligned to different transcripts.")
-    coverage = {"participant_coverage": par.coverage, "reference_coverage": ref.coverage, "transcript_word_count": len(ref.words)}
+    coverage = {
+        "participant_coverage": par.coverage,
+        "reference_coverage": ref.coverage,
+        "transcript_word_count": len(ref.words),
+        "unmatched_recognised": {"participant": len(par.unmatched_recognized), "reference": len(ref.unmatched_recognized)},
+    }
     for name, alignment in (("reference", ref), ("participant", par)):
         if alignment.coverage < settings.min_alignment_coverage:
             return unavailable(
@@ -536,14 +541,19 @@ def pause_placement(
     findings: list[Finding] = []
     located = 0
     internal = [p for p in reference.pauses.intervals if p.position == "internal"]
+    # Group the reference's pauses by the pair of aligned words they fall between. When a word in between was
+    # not recognised, two pauses share one pair; they are one place and are compared once, together.
+    places: dict[tuple[int, int], tuple[WordPair, WordPair, list]] = {}
     for pause in internal:
         before = [p for p in pairs if p.ref_end <= pause.start + BOUNDARY_TOLERANCE_SEC]
         after = [p for p in pairs if p.ref_start >= pause.end - BOUNDARY_TOLERANCE_SEC]
         if not before or not after or not (0 < after[0].index - before[-1].index <= MAX_WORDS_ACROSS_PAUSE):
             continue
         located += 1
-        left, right = before[-1], after[0]
-        duration = pause.end - pause.start
+        places.setdefault((before[-1].index, after[0].index), (before[-1], after[0], []))[2].append(pause)
+    for left, right, grouped in places.values():
+        pause = Span(start=grouped[0].start, end=grouped[-1].end)
+        duration = sum(p.end - p.start for p in grouped)
         par_silence = silence_within(participant, left.par_start, right.par_end)
         missing = duration - par_silence
         if missing < settings.pause_excess_sec:
@@ -775,7 +785,11 @@ def filler_words(participant: DeliveryAnalysis, quality: SignalQuality, settings
                 "fillers_per_minute": _round(len(findings) / transcription.duration_sec * 60, 1) if transcription.duration_sec > 0 else None,
             },
             thresholds=thresholds,
-            reason="" if findings else "None were recognised. Speech recognisers often leave fillers out, so this is not evidence that there were none.",
+            reason=(
+                "Counts only the fillers the recogniser transcribed. Recognisers often leave fillers out, so the true number may be higher."
+                if findings
+                else "None were recognised. Speech recognisers often leave fillers out, so this is not evidence that there were none."
+            ),
         ),
         findings,
     )

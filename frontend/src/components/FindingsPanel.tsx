@@ -1,5 +1,5 @@
 import type { AnalyzeResponse, DetectedFinding, FindingCategory, RuleReport } from '../lib/api'
-import { formatTime } from '../lib/format'
+import { formatTime, validInterval } from '../lib/format'
 import { Badge, EmptyState } from './ui'
 
 export const categoryLabel: Record<FindingCategory, string> = {
@@ -51,8 +51,16 @@ const ruleStatusLabel: Record<RuleReport['status'], string> = {
 
 const number = (value: number | null) => (value === null ? '—' : String(Number(value.toFixed(2))))
 
-function FindingCard({ finding, onSeek }: { finding: DetectedFinding; onSeek?: (time: number) => void }) {
-  const interval = `${formatTime(finding.start)} – ${formatTime(finding.end)}`
+function FindingCard({
+  finding,
+  durationSec,
+  onSeek,
+}: {
+  finding: DetectedFinding
+  durationSec: number
+  onSeek?: (time: number) => void
+}) {
+  const interval = validInterval(finding.start, finding.end, durationSec)
   return (
     <li className="rounded-lg border border-line bg-ink-900 p-4" style={{ borderLeftColor: categoryColor[finding.category], borderLeftWidth: 3 }}>
       <div className="flex flex-wrap items-center gap-2">
@@ -62,14 +70,17 @@ function FindingCard({ finding, onSeek }: { finding: DetectedFinding; onSeek?: (
         <Badge tone={finding.evidence_quality === 'low' ? 'warn' : 'neutral'}>{finding.evidence_quality} evidence quality</Badge>
       </div>
       <p className="mt-1 font-mono text-xs text-muted">
-        {onSeek ? (
+        {interval === null ? (
+          'Interval unavailable'
+        ) : onSeek ? (
           <button type="button" className="rounded underline underline-offset-2 hover:text-accent" onClick={() => onSeek(finding.start)} aria-label={`Play from ${interval}`}>
             {interval}
           </button>
         ) : (
           interval
         )}
-        {finding.reference_interval &&
+        {interval !== null &&
+          finding.reference_interval &&
           ` · reference ${formatTime(finding.reference_interval.start)} – ${formatTime(finding.reference_interval.end)}`}
       </p>
       <p className="mt-2 text-sm">{finding.explanation}</p>
@@ -149,6 +160,9 @@ export function FindingsPanel({ result, onSeek }: { result: AnalyzeResponse; onS
           ` Left out of the comparison: ${Object.entries(alignment.words_excluded)
             .map(([reason, count]) => `${count} ${reason.replaceAll('_', ' ')}`)
             .join(', ')}.`}
+        {alignment.status === 'aligned' &&
+          (alignment.unmatched_recognised?.participant ?? 0) > 0 &&
+          ` ${alignment.unmatched_recognised?.participant} words heard in your recording are not in the transcript; they were not compared and are not treated as differences.`}
       </p>
 
       {result.findings.length === 0 ? (
@@ -163,7 +177,7 @@ export function FindingsPanel({ result, onSeek }: { result: AnalyzeResponse; onS
       ) : (
         <ol aria-label="Findings" className="flex flex-col gap-3">
           {result.findings.map((finding) => (
-            <FindingCard key={finding.id} finding={finding} onSeek={onSeek} />
+            <FindingCard key={finding.id} finding={finding} durationSec={result.features.audio.duration_sec} onSeek={onSeek} />
           ))}
         </ol>
       )}

@@ -865,3 +865,145 @@ def test_coaching_text_makes_no_causal_or_personal_claims():
 
     for phrase in ("because you", "nervous", "anxious", "confident", "accent", "you are a", "bad", "poor", "wrong"):
         assert phrase not in text
+
+
+# --- Outstanding-limitations fix: fillers ----------------------------------------------------
+
+
+@pytest.mark.parametrize("pair", [("the", "the"), ("I", "I"), ("and", "and"), ("very", "very"), ("no", "no")])
+def test_repeated_ordinary_words_are_not_fillers(pair):
+    _, analysis = spoken_with({9: pair[0], 10: pair[1]})
+
+    assert "filler_word" not in categories(run_detection(analysis))
+
+
+def test_found_fillers_are_reported_as_a_lower_bound_not_a_complete_count():
+    _, analysis = spoken_with({9: "um"})
+
+    report = rule(run_detection(analysis), "filler_word")
+
+    assert report.status == "triggered"
+    assert "may be higher" in report.reason
+    assert "transcribed" in report.reason
+
+
+def test_nothing_recognised_is_withheld_not_reported_as_no_fillers():
+    """An empty transcript says nothing about fillers, so the rule must not say it checked and found none."""
+    analysis = analysis_of(make_take(), source="transcribed")
+    analysis.transcription = analysis.transcription.model_copy(
+        update={"status": "no_speech", "text": "", "words": [], "segments": [], "word_timestamps": "unavailable"}
+    )
+    analysis.alignment = None
+
+    report = rule(run_detection(analysis), "filler_word")
+
+    assert report.status == "withheld"
+    assert report.findings == 0
+
+
+# --- Outstanding-limitations fix: pause placement --------------------------------------------
+
+
+def test_neither_recording_pausing_is_checked_and_clean():
+    report = rule(detect(make_take()), "irregular_pauses")
+
+    assert (report.status, report.findings) == ("not_triggered", 0)
+    assert report.measured == {"reference_internal_pauses": 0, "pauses_located_between_aligned_words": 0}
+
+
+def test_two_reference_pauses_between_the_same_aligned_words_give_one_finding():
+    """Word 15 was not recognised in the participant recording, so the reference's pauses before and after it
+    both fall between the same two aligned words. That is one place, not two findings."""
+    reference_take = make_take(pauses={14: 1.0, 15: 1.0})
+    participant = analysis_of(make_take(), transcript=TEXT)
+    participant.alignment.words[15] = participant.alignment.words[15].model_copy(update={"status": "unaligned", "start": None, "end": None})
+
+    result = run_detection(participant, analysis_of(reference_take), transcript_source="user_provided")
+
+    placement = [f for f in result.findings if f.category == "irregular_pauses"]
+    assert len(placement) == 1
+    assert len({f.id for f in result.findings}) == len(result.findings)
+    assert placement[0].evidence[0].reference_value == pytest.approx(2.0, abs=0.15)  # both pauses, counted once
+    assert placement[0].evidence[0].participant_value == 0
+
+
+def test_a_reference_pause_that_cannot_be_placed_between_aligned_words_is_not_compared():
+    reference_take = make_take(pauses={14: 1.0})
+    participant = analysis_of(make_take(), transcript=TEXT)
+    for i in range(12, 18):  # the words around the reference's pause were not recognised
+        participant.alignment.words[i] = participant.alignment.words[i].model_copy(update={"status": "unaligned", "start": None, "end": None})
+
+    result = run_detection(participant, analysis_of(reference_take), transcript_source="user_provided")
+    report = rule(result, "irregular_pauses")
+
+    assert "irregular_pauses" not in categories(result)
+    assert report.measured == {"reference_internal_pauses": 1, "pauses_located_between_aligned_words": 0}
+    assert "1 reference pause(s) could not be placed between aligned words" in report.reason
+
+
+def test_an_unreliable_reference_pause_measurement_makes_placement_findings_only_possible():
+    reference = analysis_of(make_take(pauses={14: 1.0}))
+    reference.features.pauses = reference.features.pauses.model_copy(update={"reliability": "low"})
+
+    finding = only(run_detection(analysis_of(make_take(), transcript=TEXT), reference), "irregular_pauses")
+
+    assert finding.title.startswith("Possibly")
+    assert (finding.evidence_quality, finding.severity) == ("low", None)
+
+
+def test_no_event_is_reported_twice_across_the_pause_rules():
+    reference = analysis_of(make_take(pauses={8: 1.0, 20: 1.2}))
+    result = run_detection(analysis_of(make_take(pauses={14: 1.5, 30: 2.0}), transcript=TEXT), reference)
+
+    pause_like = [f for f in result.findings if f.category in ("excessive_pause", "irregular_pauses")]
+    assert sorted(f.category for f in pause_like) == ["excessive_pause", "excessive_pause", "irregular_pauses", "irregular_pauses"]
+    for a in pause_like:
+        for b in pause_like:
+            if a is not b:
+                assert a.end <= b.start or b.end <= a.start  # no two findings cover the same stretch
+
+
+# --- Outstanding-limitations fix: pitch ------------------------------------------------------
+
+
+def test_missing_pitch_is_not_measurable_which_is_different_from_no_issue_found():
+    lively = analysis_of(make_take(), transcript=TEXT)
+    untracked = analysis_of(make_take(), transcript=TEXT)
+    untracked.features.pitch = untracked.features.pitch.model_copy(
+        update={"status": "unavailable", "series": None, "median_hz": None, "range_semitones": None, "reliability": None,
+                "limitations": ["Pitch was not computed (no tracker)."]}
+    )  # fmt: skip
+
+    measured = rule(run_detection(lively, REFERENCE), "pitch_monotony")
+    unmeasurable = rule(run_detection(untracked, REFERENCE), "pitch_monotony")
+
+    assert measured.status == "not_triggered"
+    assert measured.measured["participant_range_semitones"] > 0
+    assert unmeasurable.status == "withheld"
+    assert unmeasurable.measured == {}
+    assert "Pitch was not computed" in unmeasurable.reason
+
+
+def test_unvoiced_frames_stay_missing_and_are_never_turned_into_zero():
+    features = extract_features(loaded(make_take(pauses={14: 1.0}).audio))
+    values = features.pitch.series.values
+
+    assert None in values  # the pause and the gaps between words have no pitch
+    assert 0 not in values and 0.0 not in values
+    assert min(v for v in values if v is not None) >= features.pitch.tracking_floor_hz * 0.99
+
+
+# --- Outstanding-limitations fix: unmatched and extra words ----------------------------------
+
+
+def test_extra_words_the_recogniser_heard_are_counted_and_not_treated_as_a_delivery_difference():
+    """The participant said one word that is not in the transcript. It is reported as unmatched, and the
+    comparison of the words that are in the transcript is unaffected."""
+    take = make_take(WORDS + 1)
+    spoken = [*REFERENCE_TAKE.words[:20], "extra", *REFERENCE_TAKE.words[20:]]
+    result = run_detection(analysis_of(take, spoken=spoken, transcript=TEXT), REFERENCE, transcript_source="user_provided")
+
+    status = result.alignment_status
+    assert status.unmatched_recognised == {"participant": 1, "reference": 0}
+    assert status.words_compared == WORDS
+    assert result.findings == []

@@ -201,6 +201,8 @@ export interface AlignmentStatus {
   words_compared: number
   /** Transcript words left out of the comparison, counted by reason. */
   words_excluded?: Record<string, number>
+  /** Words heard in each recording that are not in the shared transcript; never compared. */
+  unmatched_recognised?: { participant?: number; reference?: number }
   participant_window: TimeSpan | null
   reference_window: TimeSpan | null
   normalization: string
@@ -215,6 +217,8 @@ export interface TranscriptInfo {
   text: string | null
   /** Only on the shared transcript: which text both recordings were aligned to. */
   origin?: 'participant_transcript' | 'reference_transcript' | 'reference_recognition'
+  /** Only on the shared transcript: which recordings the sender said they checked it against. */
+  attested_for?: ('participant' | 'reference')[]
 }
 
 /** Fixed, rule-based wording built from findings. No language model. */

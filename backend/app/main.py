@@ -100,8 +100,14 @@ class TranscriptInfo(BaseModel):
 
 
 class SharedTranscript(TranscriptInfo):
-    # Which text both recordings were aligned to.
+    """The one text both recordings were aligned to.
+
+    A text checked against one recording has not been checked against the other, so `review_status` is
+    `user_attested` here only when the sender vouched for it on both. `attested_for` says which.
+    """
+
     origin: Literal["participant_transcript", "reference_transcript", "reference_recognition"]
+    attested_for: list[Literal["participant", "reference"]] = []
 
 
 class Transcripts(BaseModel):
@@ -361,11 +367,19 @@ def create_app(settings: Settings | None = None, transcriber: Transcriber | None
             )
             if own_text and reference_text and not _same_words(own_text, reference_text):
                 withheld = "The participant and reference transcripts contain different words, so the recordings are not compared word for word."
-            elif own_text:
-                shared = SharedTranscript(source="user_provided", review_status=attested(transcript_reviewed), text=own_text, origin="participant_transcript")
-            elif reference_text:
+            elif own_text or reference_text:
+                # The same words may have been supplied for both recordings; each statement covers only its own recording.
+                vouched = [
+                    who
+                    for who, text, flag in (("participant", own_text, transcript_reviewed), ("reference", reference_text, reference_transcript_reviewed))
+                    if text and flag
+                ]
                 shared = SharedTranscript(
-                    source="user_provided", review_status=attested(reference_transcript_reviewed), text=reference_text, origin="reference_transcript"
+                    source="user_provided",
+                    review_status=attested(len(vouched) == 2),
+                    text=own_text or reference_text,
+                    origin="participant_transcript" if own_text else "reference_transcript",
+                    attested_for=vouched,
                 )
             elif recognised:
                 shared = SharedTranscript(source="machine_generated", text=recognised, origin="reference_recognition")

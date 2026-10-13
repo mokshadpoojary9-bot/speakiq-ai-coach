@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import type { AudioFeatures, Metric } from '../lib/api'
-import { formatTime } from '../lib/format'
+import { formatTime, validInterval } from '../lib/format'
 import { pauseMarkers } from '../lib/measurements'
 import type { AnalysisSession } from '../lib/session'
 import { AudioPreview } from './AudioPreview'
@@ -74,13 +74,16 @@ export function RealAnalysisView({ session }: { session: AnalysisSession }) {
   const { features } = result
   const [seek, setSeek] = useState<{ time: number; nonce: number } | null>(null)
   const pauses = pauseMarkers(features.pauses.intervals)
-  const findingMarkers = result.findings.map((finding) => ({
-    id: finding.id,
-    label: finding.title,
-    start: finding.start,
-    end: finding.end,
-    color: categoryColor[finding.category],
-  }))
+  // Only findings whose timestamps are valid for this recording are drawn or offered for playback.
+  const findingMarkers = result.findings
+    .filter((finding) => validInterval(finding.start, finding.end, features.audio.duration_sec) !== null)
+    .map((finding) => ({
+      id: finding.id,
+      label: finding.title,
+      start: finding.start,
+      end: finding.end,
+      color: categoryColor[finding.category],
+    }))
   const play = file ? (time: number) => setSeek((previous) => ({ time, nonce: (previous?.nonce ?? 0) + 1 })) : undefined
   const duration = features.audio.duration_sec
 

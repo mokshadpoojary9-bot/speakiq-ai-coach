@@ -100,6 +100,10 @@ class AlignmentStatus(BaseModel):
     words_excluded: dict[str, int] = Field(
         default={}, description="Transcript words left out of the comparison, counted by reason."
     )
+    unmatched_recognised: dict[str, int] = Field(
+        default={},
+        description="Words heard in each recording that are not in the shared transcript. They are not compared and are not treated as delivery differences.",
+    )
     participant_coverage: float | None = None
     reference_coverage: float | None = None
     participant_window: Span | None = None
