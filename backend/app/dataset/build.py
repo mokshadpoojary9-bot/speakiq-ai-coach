@@ -30,7 +30,7 @@ from .splits import split_speakers
 from .transforms import Transformed
 
 DATASET_NAME = "speakiq-contrastive"
-DATASET_VERSION = "1.0.0"
+DATASET_VERSION = "1.0.1"
 DEFAULT_SEED = 20261013
 AUDIO_FORMAT = "FLAC, 16-bit PCM, mono, 16000 Hz"
 TOOL = f"speakiq-ai-coach backend {__version__}"

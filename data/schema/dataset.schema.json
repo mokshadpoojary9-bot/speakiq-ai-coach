@@ -527,6 +527,24 @@
           "title": "Transcript Tool",
           "type": "string"
         },
+        "transcript_review": {
+          "$ref": "#/$defs/TranscriptReview",
+          "default": {
+            "status": "unverified",
+            "reviewer": null,
+            "reviewed_on": null,
+            "method": "",
+            "asr_transcript": null,
+            "changed": false,
+            "notes": ""
+          }
+        },
+        "description_verified": {
+          "default": false,
+          "description": "Whether anyone checked the description against the audio.",
+          "title": "Description Verified",
+          "type": "boolean"
+        },
         "notes": {
           "default": "",
           "title": "Notes",
@@ -660,12 +678,82 @@
       ],
       "title": "SupportCheck",
       "type": "object"
+    },
+    "TranscriptReview": {
+      "additionalProperties": false,
+      "description": "Who checked a transcript against the audio, if anyone. Written by `app.dataset.review`.",
+      "properties": {
+        "status": {
+          "default": "unverified",
+          "enum": [
+            "unverified",
+            "verified"
+          ],
+          "title": "Status",
+          "type": "string"
+        },
+        "reviewer": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Reviewer"
+        },
+        "reviewed_on": {
+          "anyOf": [
+            {
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Reviewed On"
+        },
+        "method": {
+          "default": "",
+          "title": "Method",
+          "type": "string"
+        },
+        "asr_transcript": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "The machine transcript as it was before review.",
+          "title": "Asr Transcript"
+        },
+        "changed": {
+          "default": false,
+          "title": "Changed",
+          "type": "boolean"
+        },
+        "notes": {
+          "default": "",
+          "title": "Notes",
+          "type": "string"
+        }
+      },
+      "title": "TranscriptReview",
+      "type": "object"
     }
   },
   "additionalProperties": false,
   "properties": {
     "schema_version": {
-      "const": "1.0.0",
+      "const": "1.1.0",
       "title": "Schema Version",
       "type": "string"
     },

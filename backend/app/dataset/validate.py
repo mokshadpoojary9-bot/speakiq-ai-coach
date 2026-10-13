@@ -2,6 +2,7 @@
 
 import hashlib
 import json
+import re
 from collections import Counter
 from dataclasses import dataclass
 from pathlib import Path
@@ -69,6 +70,27 @@ def validate_manifest(data: dict, root: Path | None = None) -> list[Issue]:
                 error("duplicate_id", value, f"{kind} appears {count} times")
 
     sources = {s.source_id: s for s in manifest.sources}
+
+    # Transcript review: a transcript is only "verified" with a named reviewer and a date.
+    for source in manifest.sources:
+        review = source.transcript_review
+        if source.transcript_provenance == "manual_verified":
+            if review.status != "verified" or not review.reviewer or not review.reviewed_on or not review.method:
+                error("transcript_review", source.source_id, "a manually verified transcript needs a review with status 'verified', a reviewer, a date and a method")
+            if review.changed and not review.asr_transcript:
+                error("transcript_review", source.source_id, "a corrected transcript must keep the original machine transcript")
+        elif review.status == "verified" or review.reviewer:
+            error("transcript_review", source.source_id, f"transcript_provenance is '{source.transcript_provenance}' but a review claims verification")
+        if source.transcript_provenance == "automatic_asr_unverified" and not source.transcript_tool:
+            error("missing_metadata", source.source_id, "an automatic transcript must name the tool that produced it")
+
+    def bad_path(path: str) -> bool:
+        return bool(re.match(r"^([A-Za-z]:|/|\\\\)", path)) or "\\" in path or ".." in path.split("/")
+
+    for sample in manifest.samples:
+        for field in ("audio_path", "reference_audio_path"):
+            if bad_path(getattr(sample, field)):
+                error("invalid_path", sample.sample_id, f"{field} must be a relative path with forward slashes: {getattr(sample, field)}")
     pairs = {p.pair_id: p for p in manifest.pairs}
     by_id = {s.sample_id: s for s in manifest.samples}
     paths = {s.audio_path for s in manifest.samples}
@@ -143,6 +165,8 @@ def validate_manifest(data: dict, root: Path | None = None) -> list[Issue]:
             error("pair_integrity", pair.pair_id, "reference_sample_id does not name the pair's reference sample")
         if pair.reference_sample_id not in by_id:
             error("unknown_reference", pair.pair_id, f"reference_sample_id '{pair.reference_sample_id}' is not a sample")
+        if pair.source_id in sources and pair.transcript.strip() != sources[pair.source_id].transcript.strip():
+            error("mismatched_transcript", pair.pair_id, "pair transcript differs from its source's transcript; rebuild the dataset")
         if pair.source_id not in sources:
             error("unknown_reference", pair.pair_id, f"source_id '{pair.source_id}' is not in sources")
         if len({s.split for s in members}) > 1:

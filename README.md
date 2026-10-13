@@ -9,6 +9,8 @@ The full specification lives in [`docs/PROJECT_SPEC.yaml`](docs/PROJECT_SPEC.yam
 | Area | State |
 | --- | --- |
 | Backend API: health, acoustic features, transcription, word alignment, combined analysis | Working (see [API](#api)) |
+| Backend comparison of a participant recording with a reference (`POST /api/compare`) | Working for measured differences only; not used by the frontend yet |
+| Recording-quality checks: clipping, pitch-tracking reliability, noisy-pause confidence | Working; shown on the dashboard |
 | Local transcription with faster-whisper | Working; no Hugging Face token needed for the default model |
 | Frontend pages: landing, workspace, dashboard, Acoustic Twin, Evidence Coach, reports | Working |
 | Audio file validation, playback and waveform in the workspace | Working, in the browser only |
@@ -16,7 +18,8 @@ The full specification lives in [`docs/PROJECT_SPEC.yaml`](docs/PROJECT_SPEC.yam
 | Dashboard and Acoustic Twin for your recording | Working with real backend results; switchable to the demo fixture |
 | Findings, baseline comparison charts, coaching text and report content | **Demo fixture** (`frontend/src/fixtures/demoAnalysis.ts`), not computed from audio. Evidence Coach and Reports are demo-only |
 | Contrastive demonstration dataset: 3 real recordings, 72 transformed variants, schema, validator, dataset card | Built and validated (see [Dataset](#dataset)) |
-| Baseline comparison and flaw detection | Not implemented yet |
+| Flaw detection, severity and coaching for real recordings | Not implemented. The comparison reports differences; nothing decides which are flaws |
+| Dataset publication | Not published; export and upload guide in `data/HOSTING.md` |
 | Free-form coach questions, language model, Supabase, hosting | Not implemented or connected |
 
 Every frontend view that shows fixture data carries a "Demo data — not a real analysis" label, and views of your own recording carry a "Real analysis" label. A real analysis is kept in browser memory only and is lost when the page is reloaded. No paid API keys are needed to run the project locally.
@@ -28,7 +31,8 @@ frontend/   React + Vite + TypeScript + Tailwind CSS
 backend/    Python + FastAPI
   app/audio/    acoustic feature extraction
   app/speech/   transcription and word alignment
-  app/dataset/  dataset schema, transforms, build and validation
+  app/comparison/ reference-versus-participant differences
+  app/dataset/  dataset schema, transforms, build, validation, review and export
 data/       contrastive dataset: sources, examples, manifest, schema, dataset card
 docs/       Project specification
 ```
@@ -77,6 +81,9 @@ All optional. Copy `backend/.env.example` to `backend/.env` to change them. `bac
 | `BACKEND_CORS_ORIGINS` | `http://localhost:5173,http://127.0.0.1:5173` | Browser origins allowed to call the API |
 | `MAX_UPLOAD_MB` | `25` | Largest accepted upload |
 | `MAX_AUDIO_SECONDS` | `300` | Longest accepted recording |
+| `PAUSE_SILENCE_BELOW_SPEECH_DB` | `25` | In quiet recordings, how far below the speech level counts as silence |
+| `PAUSE_NOISE_MARGIN_DB` | `3` | In noisy recordings, how close to the noise floor counts as silence |
+| `PAUSE_MIN_SEC` | `0.25` | Shortest silence reported as a pause |
 | `WHISPER_MODEL` | `base` | faster-whisper model name or Hugging Face repository |
 | `WHISPER_DEVICE` | `cpu` | `cpu` or `cuda` |
 | `WHISPER_COMPUTE_TYPE` | `int8` | For example `int8`, `float32` |
@@ -129,6 +136,7 @@ All routes are under `/api`. Upload routes take a multipart form with `file` (WA
 | `POST /api/transcribe` | `file`, optional `language` | Text, segments and word timestamps |
 | `POST /api/align` | `file`, optional `transcript`, optional `language` | Start and end time for each transcript word |
 | `POST /api/analyze` | `file`, optional `transcript`, optional `language` | Features, transcription and alignment together |
+| `POST /api/compare` | `reference`, `participant`, optional `transcript`, optional `language` | Measured differences between two recordings of the same text |
 
 ```powershell
 curl.exe -F "file=@talk.wav" -F "transcript=Good morning everyone" http://127.0.0.1:8000/api/analyze
@@ -144,11 +152,12 @@ Every metric carries a `status`, the `method` used and its `limitations`.
 | --- | --- | --- |
 | Duration, sample rate, channels, peak amplitude | measured | Decoded with libsndfile; analysed as mono at 16 kHz |
 | Waveform peaks | measured | Largest amplitude in each of 1000 time buckets |
+| Clipping | measured, with a verdict | Flat-topped peaks counted on the decoded samples before mixing or resampling. `detected` needs 3 or more; a few, a full-scale peak without flat tops, or a loud lossy file give `uncertain` |
 | Frame energy | measured | RMS in dBFS, 25 ms frames every 10 ms |
 | Spectral centroid, bandwidth, roll-off, flatness, zero-crossing rate | measured | STFT (librosa) |
 | MFCCs | measured | 13 coefficients; mean and standard deviation returned |
-| F0 / pitch contour | measured | Praat via Parselmouth, falling back to librosa pYIN; `unavailable` if neither runs |
-| Pause intervals | measured | Silence more than 25 dB below the loudest frame for at least 0.25 s |
+| F0 / pitch contour | measured, with `reliability` | Praat via Parselmouth (pYIN fallback), in two passes: 50–600 Hz, then a range fitted to the speaker. `reliability` is `low` when octave jumps or too little voicing are seen |
+| Pause intervals | measured, with `reliability` | Quiet recordings: silence 25 dB below the speech level. Noisy recordings: silence within 3 dB of the noise floor. At least 0.25 s. `unavailable` when speech cannot be separated from the background |
 | Speaking rate (syllables per second) | **estimated** | Energy-peak syllable nuclei; not validated against hand counts |
 | Words per minute | **estimated** | Transcript word count over duration |
 
@@ -170,6 +179,17 @@ Words the recogniser heard that are not in the transcript are listed in `unmatch
 
 **Method and limits.** The recording is transcribed with word timestamps, then transcript words are matched in order to recognised words. This is not phoneme-level acoustic forced alignment: a word the recogniser misses gets no time, different spellings such as "3" and "three" do not match, and timing is accurate to roughly a tenth of a second.
 
+### Comparison (`/api/compare`)
+
+Upload a `reference` and a `participant` recording of the same text. Both are aligned to the supplied transcript, or to the text recognised in the reference if none is sent. The response contains:
+
+- **Global differences:** duration, pause count and total, pitch range and interquartile range in semitones, and speaking-rate estimates. Each says whether it is `measured` or `estimated` and whether the two values are fairly `comparable`. Median pitch in Hz is shown but marked not comparable, and loudness is left out, because both depend on the speaker or the microphone rather than the delivery.
+- **Timing differences:** gaps between consecutive words that are at least 0.25 s longer or shorter than in the reference, with the interval in each recording and the evidence. Only gaps between words recognised at the same position in both recordings are measured.
+
+These are **differences, not flaws**. Nothing is labelled a flaw, given a severity or turned into coaching; `not_implemented` in the response lists what is missing.
+
+**Measured accuracy.** `python -m app.comparison.evaluate` checks the comparison against the demonstration dataset, where pauses were inserted at known times. With the `base` transcription model on the development machine: 14 of 21 inserted pauses were reported as a longer gap, 0 longer gaps matched no inserted pause, 3 shorter gaps were reported although none was made shorter, and 6 timing differences were reported across 24 control samples whose timing is identical to the reference. Pauses are missed mainly because the recogniser stretches a word across the silence instead of leaving a gap. This is 3 speakers and transformed audio, so it indicates behaviour, not real-world accuracy.
+
 ### Combined analysis (`/api/analyze`)
 
 Runs all three. Acoustic features are always returned for valid audio. If transcription or alignment cannot run, that part is `null` and `components` gives its `status`, `code` and `message`, so a missing model never blocks the acoustic measurements.
@@ -184,9 +204,12 @@ From `backend/`:
 python -m app.dataset build                                   # regenerate all 75 samples (about 19 MB, not in Git)
 python -m app.dataset validate ..\data\speakiq-contrastive-v1  # check manifest and audio files
 python -m app.dataset validate ..\data\examples                # check the 7 committed example files
+python -m app.dataset check                                   # validate committed files and confirm a rebuild matches
+python -m app.dataset transcripts status                      # which transcripts a person has verified (none yet)
+python -m app.dataset export                                  # package for upload; uploads nothing
 ```
 
-The build needs no network access and is deterministic. `pytest tests/test_dataset.py tests/test_stress.py` runs the dataset validation tests and the audio stress tests.
+The build needs no network access and is deterministic. Transcripts are unverified machine output until someone records a review; the dataset is not published. See the dataset card for the verification workflow and [`data/HOSTING.md`](data/HOSTING.md) for publishing. `pytest tests/test_dataset.py tests/test_stress.py` runs the dataset validation tests and the audio stress tests.
 
 ## Troubleshooting
 

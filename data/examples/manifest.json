@@ -1,7 +1,7 @@
 {
-  "schema_version": "1.0.0",
+  "schema_version": "1.1.0",
   "dataset_name": "speakiq-contrastive-examples",
-  "dataset_version": "1.0.0",
+  "dataset_version": "1.0.1",
   "description": "Compact example subset of the SpeakIQ contrastive dataset: one speaker, the reference and the most strongly altered sample of each covered flaw category. For inspection and tests, not for training or evaluation.",
   "license": "Audio: derived from LibriVox public-domain recordings distributed in LibriSpeech (CC BY 4.0). Metadata: CC BY 4.0.",
   "built_with": "speakiq-ai-coach backend 0.1.0",
@@ -33,6 +33,16 @@
       "transcript": "With her white paint and her scarlet smoke stack, the inverse shield, one of the two small steamers that during the summer months, applied up and down the lock, and incidentally carried down communication between inverse shield and cryon.",
       "transcript_provenance": "automatic_asr_unverified",
       "transcript_tool": "faster-whisper, model 'base', language 'en'",
+      "transcript_review": {
+        "status": "unverified",
+        "reviewer": null,
+        "reviewed_on": null,
+        "method": "",
+        "asr_transcript": null,
+        "changed": false,
+        "notes": ""
+      },
+      "description_verified": false,
       "notes": "Transcript is unedited speech-recognition output and contains recognition errors."
     }
   ],
@@ -81,12 +91,12 @@
       "measured": {
         "provenance": "automatic_estimate",
         "tool": "speakiq-ai-coach backend 0.1.0",
-        "pitch_median_hz": 83.1,
-        "pitch_range_semitones": 8.19,
-        "total_silence_sec": 2.14,
+        "pitch_median_hz": 77.0,
+        "pitch_range_semitones": 10.34,
+        "total_silence_sec": 2.03,
         "internal_pause_count": 4,
-        "syllable_rate_estimate_per_sec": 2.02,
-        "spectral_centroid_hz": 949.7,
+        "syllable_rate_estimate_per_sec": 2.76,
+        "spectral_centroid_hz": 960.4,
         "peak_amplitude": 0.8029,
         "support_check": null
       },
@@ -148,17 +158,17 @@
       "measured": {
         "provenance": "automatic_estimate",
         "tool": "speakiq-ai-coach backend 0.1.0",
-        "pitch_median_hz": 83.1,
-        "pitch_range_semitones": 8.19,
-        "total_silence_sec": 7.54,
+        "pitch_median_hz": 77.0,
+        "pitch_range_semitones": 10.34,
+        "total_silence_sec": 7.43,
         "internal_pause_count": 4,
-        "syllable_rate_estimate_per_sec": 1.48,
-        "spectral_centroid_hz": 949.7,
+        "syllable_rate_estimate_per_sec": 2.03,
+        "spectral_centroid_hz": 964.9,
         "peak_amplitude": 0.8029,
         "support_check": {
           "metric": "total_silence_sec",
-          "reference_value": 2.14,
-          "sample_value": 7.54,
+          "reference_value": 2.03,
+          "sample_value": 7.43,
           "expectation": "detected silence rises by at least 60% of the 5.40 s inserted",
           "supported": true
         }
@@ -207,12 +217,12 @@
       "measured": {
         "provenance": "automatic_estimate",
         "tool": "speakiq-ai-coach backend 0.1.0",
-        "pitch_median_hz": 88.8,
-        "pitch_range_semitones": 8.41,
-        "total_silence_sec": 1.04,
+        "pitch_median_hz": 88.3,
+        "pitch_range_semitones": 7.83,
+        "total_silence_sec": 0.92,
         "internal_pause_count": 3,
-        "syllable_rate_estimate_per_sec": 4.15,
-        "spectral_centroid_hz": 926.2,
+        "syllable_rate_estimate_per_sec": 3.84,
+        "spectral_centroid_hz": 951.0,
         "peak_amplitude": 0.8029,
         "support_check": {
           "metric": "duration_sec",
@@ -266,12 +276,12 @@
       "measured": {
         "provenance": "automatic_estimate",
         "tool": "speakiq-ai-coach backend 0.1.0",
-        "pitch_median_hz": 82.8,
-        "pitch_range_semitones": 27.36,
-        "total_silence_sec": 3.25,
+        "pitch_median_hz": 82.0,
+        "pitch_range_semitones": 6.98,
+        "total_silence_sec": 3.09,
         "internal_pause_count": 4,
-        "syllable_rate_estimate_per_sec": 1.84,
-        "spectral_centroid_hz": 912.5,
+        "syllable_rate_estimate_per_sec": 1.66,
+        "spectral_centroid_hz": 937.7,
         "peak_amplitude": 0.8029,
         "support_check": {
           "metric": "duration_sec",
@@ -344,12 +354,12 @@
       "measured": {
         "provenance": "automatic_estimate",
         "tool": "speakiq-ai-coach backend 0.1.0",
-        "pitch_median_hz": 82.8,
-        "pitch_range_semitones": 7.98,
-        "total_silence_sec": 1.92,
+        "pitch_median_hz": 82.4,
+        "pitch_range_semitones": 7.41,
+        "total_silence_sec": 1.88,
         "internal_pause_count": 4,
         "syllable_rate_estimate_per_sec": 2.13,
-        "spectral_centroid_hz": 933.9,
+        "spectral_centroid_hz": 956.6,
         "peak_amplitude": 0.8028,
         "support_check": {
           "metric": "none",
@@ -404,17 +414,17 @@
       "measured": {
         "provenance": "automatic_estimate",
         "tool": "speakiq-ai-coach backend 0.1.0",
-        "pitch_median_hz": 83.0,
-        "pitch_range_semitones": 0.9,
-        "total_silence_sec": 2.12,
+        "pitch_median_hz": 82.6,
+        "pitch_range_semitones": 6.57,
+        "total_silence_sec": 2.02,
         "internal_pause_count": 4,
-        "syllable_rate_estimate_per_sec": 2.02,
-        "spectral_centroid_hz": 945.2,
+        "syllable_rate_estimate_per_sec": 2.63,
+        "spectral_centroid_hz": 958.9,
         "peak_amplitude": 0.7836,
         "support_check": {
           "metric": "pitch_range_semitones",
-          "reference_value": 8.19,
-          "sample_value": 0.9,
+          "reference_value": 10.34,
+          "sample_value": 6.57,
           "expectation": "measured pitch range is narrower than the reference",
           "supported": true
         }
@@ -464,17 +474,17 @@
       "measured": {
         "provenance": "automatic_estimate",
         "tool": "speakiq-ai-coach backend 0.1.0",
-        "pitch_median_hz": 83.0,
-        "pitch_range_semitones": 7.07,
-        "total_silence_sec": 2.2,
+        "pitch_median_hz": 76.7,
+        "pitch_range_semitones": 10.39,
+        "total_silence_sec": 2.18,
         "internal_pause_count": 4,
-        "syllable_rate_estimate_per_sec": 2.02,
-        "spectral_centroid_hz": 271.4,
+        "syllable_rate_estimate_per_sec": 2.76,
+        "spectral_centroid_hz": 272.4,
         "peak_amplitude": 0.7046,
         "support_check": {
           "metric": "spectral_centroid_hz",
-          "reference_value": 949.7,
-          "sample_value": 271.4,
+          "reference_value": 960.4,
+          "sample_value": 272.4,
           "expectation": "mean spectral centroid is lower than the reference",
           "supported": true
         }

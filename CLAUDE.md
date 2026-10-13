@@ -26,7 +26,16 @@ SpeakIQ AI Coach — evidence-first speech delivery analysis with temporally gro
 - `backend/app/dataset/` — schema (pydantic, versioned), deterministic transforms, `build`, `validate`. Labels are known by construction; `measured` values are automatic estimates and must never be used to set labels. After changing the schema or recipes, rerun `export-schema`, `build` and `build-examples` and update the figures in the dataset card from the new manifest. Praat resynthesis must stay seeded (`PRAAT_SEED`) or builds stop being reproducible.
 - `backend/app/audio/` — real feature extraction (`loading`, `features`, `pitch`, `timing`, `pipeline`, `schemas`). Each metric reports `status` (`measured` / `estimated` / `unavailable`), `method` and `limitations`; keep that contract for new metrics.
 - `backend/app/speech/` — local transcription (faster-whisper, loaded lazily) and transcript-to-recognition word alignment. Unmatched words get null times; never interpolate or invent them.
-- API routes live under `/api` in `backend/app/main.py`: `health`, `features`, `transcribe`, `align`, `analyze`. Errors are `{"detail": {"code", "message"}}`. The frontend calls `/api/health` and `/api/analyze` through `frontend/src/lib/api.ts`.
+- `backend/app/comparison/` — reference-versus-participant comparison. Reports measured differences only (global metrics, and timing differences between words aligned in both recordings). It must not label flaws, assign severity or produce coaching until validated thresholds exist.
+- API routes live under `/api` in `backend/app/main.py`: `health`, `features`, `transcribe`, `align`, `analyze`, `compare`. Errors are `{"detail": {"code", "message"}}`. The frontend calls `/api/health` and `/api/analyze` through `frontend/src/lib/api.ts`.
+
+## Measurement rules
+
+- Pitch is tracked in two passes with a speaker-adapted range (`audio/pitch.py`). Report `reliability: low` rather than a confident number when octave jumps or too little voicing are seen.
+- Pause detection uses `PauseSettings` (`audio/features.py`): a relative threshold in quiet recordings and a noise-floor threshold in noisy ones; `unavailable` when speech cannot be separated from the background.
+- Clipping is measured on decoded samples before mono mixing or resampling (`audio/loading.py`), with verdicts `detected`, `not_detected` or `uncertain`.
+- Dataset transcripts stay `automatic_asr_unverified` until a named human reviewer records a review with `transcripts verify --listened`. Never run that command on the user's behalf or edit review fields by hand.
+- The dataset is not published. Do not say it is unless an upload has actually succeeded; `data/HOSTING.md` holds the status line.
 
 ## Configuration and secrets
 
@@ -52,7 +61,7 @@ Backend (run from `backend/`, PowerShell):
 - `python -m venv .venv; .\.venv\Scripts\Activate.ps1; pip install -r requirements-dev.txt`
 - `uvicorn app.main:app --reload --port 8000` — API on http://127.0.0.1:8000, Swagger UI at `/docs`
 - `python -m app.speech.prefetch` — download the transcription model once
-- `python -m app.dataset build | build-examples | validate DIR | export-schema` — dataset commands
+- `python -m app.dataset build | build-examples | validate DIR | check | export | export-schema | transcripts status|sheet|verify` — dataset commands. `check` must pass before committing dataset changes.
 - `pytest`
 
 ## Automatic GitHub Commit and Push Policy

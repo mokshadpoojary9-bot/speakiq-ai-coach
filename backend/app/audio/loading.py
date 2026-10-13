@@ -10,6 +10,7 @@ import soundfile as sf
 from scipy.signal import resample_poly
 
 SUPPORTED_EXTENSIONS = (".wav", ".flac", ".ogg", ".mp3")
+LOSSY_EXTENSIONS = (".ogg", ".mp3")
 ANALYSIS_SAMPLE_RATE = 16_000
 MIN_DURATION_SEC = 0.3
 
@@ -24,6 +25,58 @@ class AudioError(Exception):
         self.message = message
 
 
+MIN_FLAT_RUN_SAMPLES = 3
+FULL_SCALE_FRACTION = 0.999
+PCM16_STEP = 1 / 32768
+
+
+@dataclass(frozen=True)
+class ClippingStats:
+    """Evidence of clipping, measured on the decoded samples before any mixing or resampling."""
+
+    peak: float = 0.0
+    flat_top_runs: int = 0
+    longest_flat_run: int = 0
+    flat_top_fraction: float = 0.0
+    near_full_scale_fraction: float = 0.0
+    lossy_source: bool = False
+
+
+def measure_clipping(samples: np.ndarray, *, lossy_source: bool = False) -> ClippingStats:
+    """Count flat-topped peaks in `samples` (frames x channels).
+
+    A clipped waveform rises steeply and is then held at one value. A clean waveform, even one
+    that touches full scale, curves over its peak. So a run only counts when several samples sit
+    at the peak level and the step into or out of the run is abrupt.
+    """
+    peak = float(np.abs(samples).max()) if samples.size else 0.0
+    if peak < 1e-4:
+        return ClippingStats(lossy_source=lossy_source)
+    tolerance = max(PCM16_STEP, peak * 1e-4)
+    runs = longest = flat_samples = 0
+    for channel in samples.T:
+        at_peak = np.abs(channel) >= peak - tolerance
+        edges = np.flatnonzero(np.diff(np.concatenate(([False], at_peak, [False])).astype(np.int8)))
+        for start, end in zip(edges[0::2], edges[1::2]):
+            length = int(end - start)
+            if length < MIN_FLAT_RUN_SAMPLES:
+                continue
+            step_in = abs(channel[start] - channel[start - 1]) if start > 0 else 0.0
+            step_out = abs(channel[end - 1] - channel[end]) if end < len(channel) else 0.0
+            if max(step_in, step_out) > 8 * tolerance:
+                runs += 1
+                flat_samples += length
+                longest = max(longest, length)
+    return ClippingStats(
+        peak=peak,
+        flat_top_runs=runs,
+        longest_flat_run=longest,
+        flat_top_fraction=flat_samples / samples.size,
+        near_full_scale_fraction=float(np.mean(np.abs(samples) >= FULL_SCALE_FRACTION)),
+        lossy_source=lossy_source,
+    )
+
+
 @dataclass(frozen=True)
 class LoadedAudio:
     filename: str
@@ -31,6 +84,7 @@ class LoadedAudio:
     sample_rate: int
     original_sample_rate: int
     channels: int
+    clipping: ClippingStats = ClippingStats()
 
     @property
     def duration_sec(self) -> float:
@@ -62,6 +116,8 @@ def load_audio(data: bytes, filename: str, *, max_duration_sec: float) -> Loaded
     if not np.all(np.isfinite(mono)):
         raise AudioError(400, "invalid_samples", "The file contains invalid sample values.")
 
+    clipping = measure_clipping(samples, lossy_source=extension in LOSSY_EXTENSIONS)
+
     if sample_rate != ANALYSIS_SAMPLE_RATE:
         divisor = gcd(ANALYSIS_SAMPLE_RATE, sample_rate)
         mono = resample_poly(mono, ANALYSIS_SAMPLE_RATE // divisor, sample_rate // divisor)
@@ -72,4 +128,5 @@ def load_audio(data: bytes, filename: str, *, max_duration_sec: float) -> Loaded
         sample_rate=ANALYSIS_SAMPLE_RATE,
         original_sample_rate=int(sample_rate),
         channels=channels,
+        clipping=clipping,
     )

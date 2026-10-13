@@ -75,7 +75,8 @@ def test_pure_noise_is_not_mistaken_for_voiced_speech():
 
     assert result.pitch.status == "measured"
     assert result.pitch.voiced_fraction < 0.1
-    assert result.pauses.internal_pause_count == 0
+    # Steady noise has no quieter moments, so pauses are not reported rather than reported as zero.
+    assert result.pauses.status == "unavailable"
     assert_well_formed(result)
 
 
@@ -88,15 +89,17 @@ def test_light_background_noise_does_not_hide_a_pause():
     assert result.pitch.median_hz == pytest.approx(150, abs=3)
 
 
-def test_heavy_background_noise_hides_pauses_and_the_limitation_says_so():
-    """Known limitation, pinned here so a change in behaviour is noticed: the silence threshold is
-    relative to the loudest frame, so noise above it makes pauses undetectable."""
+def test_heavy_background_noise_no_longer_hides_the_pause():
+    """Regression for the Milestone 5 limitation: with the threshold tied to the loudest frame,
+    noise at this level made every pause undetectable."""
     speech = np.concatenate([syllables(8), silence(1.0), syllables(8)])
     result = extract_features(loaded(speech + noise(len(speech) / SR, 0.05)))
 
     assert result.pauses.status == "measured"
-    assert result.pauses.internal_pause_count == 0
-    assert any("background noise can hide pauses" in text for text in result.pauses.limitations)
+    assert result.pauses.threshold_rule == "noise_floor"
+    longest = max(result.pauses.intervals, key=lambda i: i.end - i.start)
+    assert longest.start == pytest.approx(2.0, abs=0.12)
+    assert longest.end == pytest.approx(3.0, abs=0.12)
     assert_well_formed(result)
 
 

@@ -3,17 +3,20 @@
 import numpy as np
 
 from . import features, timing
+from .features import DEFAULT_PAUSE_SETTINGS, PauseSettings
 from .loading import LoadedAudio
 from .pitch import pitch, track_pitch
 from .schemas import AudioFeatures, AudioInfo, FrameConfig
 
 
-def extract_features(audio: LoadedAudio, transcript: str | None = None) -> AudioFeatures:
+def extract_features(
+    audio: LoadedAudio, transcript: str | None = None, pause_settings: PauseSettings = DEFAULT_PAUSE_SETTINGS
+) -> AudioFeatures:
     samples, sample_rate, duration = audio.samples, audio.sample_rate, audio.duration_sec
 
-    frames = features.compute_frames(samples, sample_rate)
+    frames = features.compute_frames(samples, sample_rate, pause_settings)
     track = track_pitch(samples, sample_rate)
-    pause_result = timing.pauses(frames, duration)
+    pause_result = timing.pauses(frames, duration, pause_settings)
 
     return AudioFeatures(
         audio=AudioInfo(
@@ -31,6 +34,7 @@ def extract_features(audio: LoadedAudio, transcript: str | None = None) -> Audio
             window=features.WINDOW,
         ),
         waveform=features.waveform(samples, sample_rate),
+        clipping=features.clipping(audio.clipping),
         energy=features.energy(frames),
         spectral=features.spectral(samples, frames),
         mfcc=features.mfcc(samples, frames),

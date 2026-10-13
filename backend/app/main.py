@@ -7,6 +7,7 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
 from . import __version__
+from .comparison import ComparisonResult, DeliveryAnalysis, compare_deliveries
 from .audio import SUPPORTED_EXTENSIONS, AudioError, AudioFeatures, LoadedAudio, extract_features, load_audio
 from .config import Settings, get_settings
 from .speech import (
@@ -86,6 +87,23 @@ class AnalyzeResponse(BaseModel):
     limitations: list[str]
 
 
+class RecordingSummary(BaseModel):
+    filename: str
+    duration_sec: float
+    transcription: ComponentStatus
+    alignment: ComponentStatus
+
+
+class CompareResponse(BaseModel):
+    is_demo: Literal[False] = False
+    transcript_source: Literal["supplied", "reference_transcription", "none"] = Field(
+        description="Which text both recordings were aligned to."
+    )
+    reference: RecordingSummary
+    participant: RecordingSummary
+    comparison: ComparisonResult
+
+
 def _error(status_code: int, code: str, message: str) -> HTTPException:
     return HTTPException(status_code, {"code": code, "message": message})
 
@@ -159,7 +177,7 @@ def create_app(settings: Settings | None = None, transcriber: Transcriber | None
     @api.post("/features", response_model=AudioFeatures, responses=ERROR_RESPONSES, tags=["analysis"])
     def features(file: AudioFile, transcript: OptionalTranscript = None) -> AudioFeatures:
         """Measure acoustic features of one recording: energy, spectrum, MFCCs, pitch, pauses and a speaking-rate estimate."""
-        return extract_features(read_audio(file), transcript)
+        return extract_features(read_audio(file), transcript, settings.pause_settings)
 
     @api.post("/transcribe", response_model=Transcription, responses=ERROR_RESPONSES, tags=["speech"])
     def transcribe(file: AudioFile, language: Language = None) -> Transcription:
@@ -186,7 +204,7 @@ def create_app(settings: Settings | None = None, transcriber: Transcriber | None
         cannot run, that part is null and `components` says why.
         """
         audio = read_audio(file)
-        feature_result = extract_features(audio, transcript)
+        feature_result = extract_features(audio, transcript, settings.pause_settings)
 
         transcription: Transcription | None = None
         alignment: Alignment | None = None
@@ -225,6 +243,78 @@ def create_app(settings: Settings | None = None, transcriber: Transcriber | None
                 "No comparison with a baseline delivery and no flaw detection is performed yet.",
                 "Acoustic features, transcription and alignment are reported separately; they are not yet combined into findings.",
             ],
+        )
+
+    def analyse_for_comparison(audio: LoadedAudio, transcript: str | None, language: str | None):
+        """Features always; transcription and alignment when they can run. Never raises for speech problems."""
+        features = extract_features(audio, transcript, settings.pause_settings)
+        transcription: Transcription | None = None
+        alignment: Alignment | None = None
+        try:
+            transcription = transcriber.transcribe(audio.samples, audio.sample_rate, language)
+            transcription_status = ComponentStatus(status="completed")
+        except SpeechError as error:
+            transcription_status = ComponentStatus(
+                status="failed" if error.status_code == 500 else "unavailable", code=error.code, message=error.message
+            )
+        if transcription is None:
+            alignment_status = ComponentStatus(
+                status="unavailable", code="transcription_required", message="Alignment needs transcription, which did not run."
+            )
+        elif not (transcript and transcript.strip()):
+            alignment_status = ComponentStatus(
+                status="unavailable", code="no_shared_transcript", message="There is no transcript to align this recording to."
+            )
+        else:
+            try:
+                alignment = align_transcript(transcript, transcription.words, source="supplied")
+                alignment_status = ComponentStatus(status="completed")
+            except SpeechError as error:
+                alignment_status = ComponentStatus(status="unavailable", code=error.code, message=error.message)
+        analysis = DeliveryAnalysis(features=features, transcription=transcription, alignment=alignment)
+        summary = RecordingSummary(
+            filename=features.audio.filename,
+            duration_sec=features.audio.duration_sec,
+            transcription=transcription_status,
+            alignment=alignment_status,
+        )
+        return analysis, summary
+
+    @api.post("/compare", response_model=CompareResponse, responses=ERROR_RESPONSES, tags=["analysis"])
+    def compare(
+        reference: Annotated[UploadFile, File(description="The delivery to compare against: WAV, FLAC, OGG or MP3.")],
+        participant: Annotated[UploadFile, File(description="The delivery being examined: WAV, FLAC, OGG or MP3.")],
+        transcript: OptionalTranscript = None,
+        language: Language = None,
+    ) -> CompareResponse:
+        """
+        Compare a participant recording with a reference recording of the same text.
+
+        Returns measured differences only: overall measures, and gaps between words that are clearly longer or
+        shorter than in the reference. It does not label anything a flaw or assign severity. Without a supplied
+        transcript, both recordings are aligned to the text recognised in the reference.
+        """
+        reference_audio = read_audio(reference)
+        participant_audio = read_audio(participant)
+
+        supplied = bool(transcript and transcript.strip())
+        source = "supplied"
+        shared = transcript
+        if not supplied:
+            # Recognise the reference first so both recordings can be aligned to the same words.
+            try:
+                recognised = transcriber.transcribe(reference_audio.samples, reference_audio.sample_rate, language)
+                shared, source = (recognised.text, "reference_transcription") if recognised.text.strip() else (None, "none")
+            except SpeechError:
+                shared, source = None, "none"
+
+        reference_analysis, reference_summary = analyse_for_comparison(reference_audio, shared, language)
+        participant_analysis, participant_summary = analyse_for_comparison(participant_audio, shared, language)
+        return CompareResponse(
+            transcript_source=source,
+            reference=reference_summary,
+            participant=participant_summary,
+            comparison=compare_deliveries(reference_analysis, participant_analysis),
         )
 
     app.include_router(api)

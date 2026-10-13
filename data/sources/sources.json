@@ -14,7 +14,17 @@
       "transcript": "With her white paint and her scarlet smoke stack, the inverse shield, one of the two small steamers that during the summer months, applied up and down the lock, and incidentally carried down communication between inverse shield and cryon.",
       "transcript_provenance": "automatic_asr_unverified",
       "transcript_tool": "faster-whisper, model 'base', language 'en'",
-      "notes": "Transcript is unedited speech-recognition output and contains recognition errors."
+      "notes": "Transcript is unedited speech-recognition output and contains recognition errors.",
+      "transcript_review": {
+        "status": "unverified",
+        "reviewer": null,
+        "reviewed_on": null,
+        "method": "",
+        "asr_transcript": null,
+        "changed": false,
+        "notes": ""
+      },
+      "description_verified": false
     },
     {
       "source_id": "librispeech-3436-172162-0000",
@@ -30,7 +40,17 @@
       "transcript": "the adventure of the cart. It befell in the month of May. Queen Gweniver called to her nights of the table-round and gave them warning that early upon the morrow she would ride a maying into the woods and fields beside Westminster.",
       "transcript_provenance": "automatic_asr_unverified",
       "transcript_tool": "faster-whisper, model 'base', language 'en'",
-      "notes": "Transcript is unedited speech-recognition output and contains recognition errors."
+      "notes": "Transcript is unedited speech-recognition output and contains recognition errors.",
+      "transcript_review": {
+        "status": "unverified",
+        "reviewer": null,
+        "reviewed_on": null,
+        "method": "",
+        "asr_transcript": null,
+        "changed": false,
+        "notes": ""
+      },
+      "description_verified": false
     },
     {
       "source_id": "librispeech-198-209-0000",
@@ -46,7 +66,17 @@
       "transcript": "Mrs. Allen, said Chatherin the next morning, Will there be any harm in my calling on Miss Tilney today? I shall not be easy to lie have explained everything. Go by all means, my dear, only put on a white gown. Miss Tilney always wears white.",
       "transcript_provenance": "automatic_asr_unverified",
       "transcript_tool": "faster-whisper, model 'base', language 'en'",
-      "notes": "Transcript is unedited speech-recognition output and contains recognition errors. The description is the one librosa ships for this file. The recognised words (Mrs. Allen, Miss Tilney) suggest the passage is from a different Jane Austen novel; this has not been checked against the audio."
+      "notes": "Transcript is unedited speech-recognition output and contains recognition errors. The description is the one librosa ships for this file. The recognised words (Mrs. Allen, Miss Tilney) suggest the passage is from a different Jane Austen novel; this has not been checked against the audio.",
+      "transcript_review": {
+        "status": "unverified",
+        "reviewer": null,
+        "reviewed_on": null,
+        "method": "",
+        "asr_transcript": null,
+        "changed": false,
+        "notes": ""
+      },
+      "description_verified": false
     }
   ]
 }

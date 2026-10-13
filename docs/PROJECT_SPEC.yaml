@@ -218,4 +218,16 @@ milestones:
       - "Dataset card: provenance, licensing, generation methods, annotation, limitations, biases, intended use."
       - "Keep large audio out of Git; include compact licensed examples and document hosting and download."
       - "Fixed seeds, automated dataset-validation tests, a reproducible build command, and no invented sizes, statistics or validation claims."
+  - id: 5.1
+    name: "Data quality and feature robustness"
+    source: "Summarised from the owner's Milestone 5.1 build prompt, which was received in full."
+    tasks:
+      - "Pitch tracking: investigate unstable estimates for low-pitched speakers (F0 settings, octave errors, voicing, speaker normalisation); validate with varied pitch ranges without hardcoding expected values or claiming untested accuracy."
+      - "Pause detection: handle background noise with appropriate noise handling and configurable thresholds; test clean speech, noisy speech, silence and very short pauses."
+      - "Clipping detection: a measurable indicator from samples near the amplitude limits, distinguishing detected clipping from an uncertain result."
+      - "Transcript quality: a verification workflow; automatic transcripts stay labelled unverified until reviewed; never silently change source descriptions or claim manual verification."
+      - "Dataset reproducibility: verify build and validation commands from the documented directories; check timestamps, manifest paths, schema validity, provenance and deterministic output."
+      - "Dataset hosting: a reproducible export and upload guide for a public host; never claim publication without a successful upload; never upload private recordings."
+      - "Baseline comparison and flaw detection: design the reference-versus-participant interfaces; implement only what actual measurements and valid aligned intervals support; fabricate nothing."
+      - "Regression tests for every issue; honest reporting of anything that cannot be fixed reliably."
   # Milestones 6 and later: not yet supplied by the owner.

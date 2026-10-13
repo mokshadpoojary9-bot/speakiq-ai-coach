@@ -30,6 +30,7 @@ export function sampleAnalysis(): AnalyzeResponse {
         peak_amplitude: 0.5,
       },
       waveform: { ...metric('measured', 'Largest absolute sample amplitude per bucket.'), bucket_sec: 0.12, peaks: Array.from({ length: 40 }, (_, i) => (i % 5) / 10) },
+      clipping: { ...metric('measured', 'Counts flat-topped peaks.'), verdict: 'not_detected', peak_amplitude: 0.5, flat_top_runs: 0 },
       energy: {
         ...metric('measured', 'RMS amplitude in dBFS.', ['Levels depend on recording gain.']),
         series: { unit: 'dBFS', start_sec: 0, hop_sec: 0.1, values: ENERGY },
@@ -51,12 +52,15 @@ export function sampleAnalysis(): AnalyzeResponse {
         min_hz: 150,
         max_hz: 154,
         range_semitones: 0.4,
+        reliability: 'ok',
       },
       pauses: {
         ...metric('measured', 'Runs of quiet frames.', ['Detects silence only.']),
         threshold_db: -42,
         min_pause_sec: 0.25,
         intervals: [{ start: 2.0, end: 2.8, position: 'internal' }],
+        reliability: 'ok',
+        threshold_rule: 'relative_to_speech',
         internal_pause_count: 1,
         total_internal_pause_sec: 0.8,
         speech_sec: 4.0,

@@ -187,3 +187,6 @@ Thumbs.db
 
 # Dataset: the full generated audio is rebuilt with `python -m app.dataset build`, not committed
 data/speakiq-contrastive-v1/audio/
+
+# Dataset export staging area and archives (created by `python -m app.dataset export`)
+data/export/

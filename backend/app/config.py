@@ -4,6 +4,8 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 
+from .audio.features import PauseSettings
+
 BACKEND_ROOT = Path(__file__).resolve().parents[1]
 
 # Optional local configuration and secrets; a missing file is fine. Real environment variables win.
@@ -30,6 +32,14 @@ class Settings:
     )
     max_upload_mb: float = field(default_factory=lambda: float(_env("MAX_UPLOAD_MB", "25")))
     max_audio_seconds: float = field(default_factory=lambda: float(_env("MAX_AUDIO_SECONDS", "300")))
+
+    pause_settings: PauseSettings = field(
+        default_factory=lambda: PauseSettings(
+            silence_below_speech_db=float(_env("PAUSE_SILENCE_BELOW_SPEECH_DB", "25")),
+            noise_margin_db=float(_env("PAUSE_NOISE_MARGIN_DB", "3")),
+            min_pause_sec=float(_env("PAUSE_MIN_SEC", "0.25")),
+        )
+    )
 
     whisper_model: str = field(default_factory=lambda: _env("WHISPER_MODEL", "base"))
     whisper_device: str = field(default_factory=lambda: _env("WHISPER_DEVICE", "cpu"))

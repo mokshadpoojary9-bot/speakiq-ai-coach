@@ -8,7 +8,7 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
-SCHEMA_VERSION = "1.0.0"
+SCHEMA_VERSION = "1.1.0"
 
 DeliveryCondition = Literal["reference", "flawed"]
 
@@ -55,6 +55,18 @@ class FlawInterval(Strict):
     detail: str = ""
 
 
+class TranscriptReview(Strict):
+    """Who checked a transcript against the audio, if anyone. Written by `app.dataset.review`."""
+
+    status: Literal["unverified", "verified"] = "unverified"
+    reviewer: str | None = None
+    reviewed_on: str | None = Field(default=None, pattern=r"^\d{4}-\d{2}-\d{2}$")
+    method: str = ""
+    asr_transcript: str | None = Field(default=None, description="The machine transcript as it was before review.")
+    changed: bool = False
+    notes: str = ""
+
+
 class SourceRecording(Strict):
     source_id: str = Field(min_length=1)
     speaker_id: str = Field(min_length=1)
@@ -69,6 +81,8 @@ class SourceRecording(Strict):
     transcript: str = Field(min_length=1)
     transcript_provenance: TranscriptProvenance
     transcript_tool: str = ""
+    transcript_review: TranscriptReview = TranscriptReview()
+    description_verified: bool = Field(default=False, description="Whether anyone checked the description against the audio.")
     notes: str = ""
 
 
@@ -155,7 +169,7 @@ class SplitInfo(Strict):
 
 
 class DatasetManifest(Strict):
-    schema_version: Literal["1.0.0"]
+    schema_version: Literal["1.1.0"]
     dataset_name: str = Field(min_length=1)
     dataset_version: str = Field(pattern=r"^\d+\.\d+\.\d+$")
     description: str = Field(min_length=1)

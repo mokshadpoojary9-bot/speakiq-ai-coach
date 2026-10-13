@@ -13,12 +13,15 @@ from scipy.ndimage import uniform_filter1d
 from scipy.signal import butter, sosfiltfilt
 
 from ..audio.features import compute_frames
-from ..audio.pitch import PITCH_CEILING_HZ, PITCH_FLOOR_HZ
 
 FADE_SEC = 0.01
 EDGE_MARGIN_SEC = 1.0
 MIN_SPACING_SEC = 1.5
 PRAAT_SEED = 20261013
+# Fixed analysis range of the Praat manipulations. Kept independent of the analysis pipeline's
+# adaptive tracker so that improving the tracker never changes the dataset's audio.
+PITCH_FLOOR_HZ = 75.0
+PITCH_CEILING_HZ = 500.0
 
 
 @dataclass(frozen=True)

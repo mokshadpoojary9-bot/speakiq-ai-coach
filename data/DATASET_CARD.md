@@ -1,6 +1,10 @@
 # SpeakIQ Contrastive Speech Dataset — dataset card
 
-Version 1.0.0 · schema 1.0.0 · built by `python -m app.dataset build` (seed 20261013)
+Version 1.0.1 · schema 1.1.0 · built by `python -m app.dataset build` (seed 20261013)
+
+**Not published.** This dataset exists only in this repository; see [`HOSTING.md`](HOSTING.md).
+
+Version 1.0.1 changes metadata only: every audio file is byte-identical to 1.0.0. The automatic estimates were recomputed with an improved pitch tracker and pause detector, and each source gained a transcript review record.
 
 ## Summary
 
@@ -26,12 +30,14 @@ These figures are read from `speakiq-contrastive-v1/manifest.json`, which the bu
 ```
 data/
   DATASET_CARD.md                    this file
+  HOSTING.md                         how to export and publish (not yet published)
   schema/dataset.schema.json         JSON Schema for manifests (generated from backend/app/dataset/schema.py)
   sources/                           the 3 source recordings (OGG) and sources.json (provenance, licence, checksums)
   examples/                          7 audio files + manifest: one speaker, reference and the 'severe' sample per category
   speakiq-contrastive-v1/
     manifest.json                    full metadata for all 75 samples, including checksums
     audio/                           NOT in Git (about 19 MB); created by the build command
+  export/                            NOT in Git; created by the export command
 ```
 
 ## Provenance
@@ -90,6 +96,19 @@ There are three kinds of information in the manifest, kept separate:
 
 **Transcripts** are unedited output of faster-whisper (`base` model), marked `automatic_asr_unverified`. They contain visible recognition errors (for example "nights of the table-round"). Every sample in a pair shares its reference's transcript, because none of the transforms changes the words.
 
+### Transcript verification
+
+**No transcript has been verified.** All three are `unverified`, with no reviewer, and the source descriptions are marked `description_verified: false`. The workflow for changing that is:
+
+```powershell
+python -m app.dataset transcripts status      # which sources are verified
+python -m app.dataset transcripts sheet       # checklist with each audio file path and current text
+python -m app.dataset transcripts verify SOURCE_ID --reviewer "Your Name" --listened [--text-file corrected.txt]
+python -m app.dataset build ; python -m app.dataset build-examples
+```
+
+`verify` refuses to run without a reviewer name and the `--listened` flag, which is the reviewer's statement that they played the audio. It records the reviewer, the date, whether the text changed, and keeps the original machine transcript. Only then does the provenance become `manual_verified`. Validation rejects a manifest that claims verification without such a record, and reports a built dataset as stale if a transcript was corrected after it was built. Correcting a description is a manual edit to `sources/sources.json`; nothing changes it automatically.
+
 ## Splits
 
 Whole speakers are assigned to splits by a seeded shuffle, so no speaker or recording appears in two splits:
@@ -106,14 +125,19 @@ With one speaker per split, these splits demonstrate leakage-free splitting. The
 
 `python -m app.dataset validate DIR` checks: schema and required metadata; duplicate sample, pair, source and path identifiers; labels (allowed values, reference versus flawed consistency, severity rank, categories actually covered, real versus synthetic origin); timestamps (non-negative, end after start, within the audio); transcripts (must match the pair unless a documented difference is declared); pair integrity; speaker and recording leakage across splits; and, unless `--metadata-only` is given, that each audio file exists, matches its checksum, decodes, and has the stated sample rate and duration.
 
-Current results: the full build and the example set each validate with 0 errors and 0 warnings.
+It also checks that manifest paths are relative with forward slashes, and that any transcript marked verified has a review record.
+
+`python -m app.dataset check` runs everything a fresh checkout can verify: it validates the example set with its audio and the full manifest, confirms the JSON Schema file is current, then rebuilds both the example set and the full dataset in a temporary folder and compares every sample's audio checksum and metadata with the committed manifests.
+
+Current results: the full build and the example set each validate with 0 errors and 0 warnings, and `check` reports both rebuilds identical on the development machine.
 
 ## Limitations
 
 - **Transformed, not natural.** Time-stretched speech is not how a person sounds when rushing; real rushed speech also changes articulation, pausing and pitch. Models trained on this may learn the transform's artefacts instead of the flaw.
 - **Each sample has exactly one flaw type.** Real deliveries combine several.
 - **Transforms leave artefacts** such as resynthesis noise and abrupt joins between stretches. They have not been listened to or rated.
-- **The automatic estimates are rough.** The pitch-range estimate in particular is unstable: for speaker 5703, whose median pitch (about 83 Hz) is close to the tracker's 75 Hz floor, samples whose transform should leave pitch alone show measured ranges of up to 31 semitones against 8.2 for the reference, and the reference of speaker 198 measures 21.5 semitones. These look like octave-tracking errors. Do not treat `measured` values as ground truth.
+- **The automatic estimates are rough, though better than in 1.0.0.** Version 1.0.0 measured pitch with a fixed 75–500 Hz search range, which produced octave errors: samples whose transform leaves pitch alone measured ranges of up to 31 semitones for speaker 5703 and up to 22 for speaker 198. The tracker now adapts its range to each speaker. Across the 20 pitch-preserving variants of each speaker, the measured range now spans 9.2–9.5 semitones for speaker 3436 (reference 9.4) and 13.3–13.6 for speaker 198 (reference 13.5). Speaker 5703, a low voice of about 77 Hz with creaky stretches, is still unstable at 6.8–13.1 (reference 10.3). Do not treat `measured` values as ground truth.
+- **`pitch_monotony` does not flatten the lowest frames.** The transform analyses pitch between 75 and 500 Hz, so creaky frames below 75 Hz keep their original pitch. For speaker 5703 the `severe` sample therefore still measures 6.6 semitones (reference 10.3), against 1.1 and 2.1 for the other two speakers. The audio was deliberately left unchanged in 1.0.1.
 - **`unclear_articulation` is a proxy** and should not be used as ground truth for articulation.
 - **Inserted pauses are digital silence**, which sounds unlike a real pause with room tone, and are placed at quiet moments rather than at linguistically meaningful points.
 - **Tiny.** Three recordings of about 15 seconds each. No statistical conclusion can be drawn from it.
@@ -142,8 +166,10 @@ python -m app.dataset build              # writes data/speakiq-contrastive-v1/ (
 python -m app.dataset validate ..\data\speakiq-contrastive-v1
 python -m app.dataset build-examples     # rewrites data/examples/
 python -m app.dataset export-schema      # rewrites data/schema/dataset.schema.json
+python -m app.dataset check              # validates committed files and confirms a rebuild reproduces them
+python -m app.dataset export             # packages the build for upload; uploads nothing
 ```
 
 The full audio is kept out of Git and regenerated by the build, which needs no network access because the three small source files are committed.
 
-**The built dataset is not currently hosted anywhere.** To publish it, zip `data/speakiq-contrastive-v1/` after a build and attach it to a GitHub Release of this repository, or upload it as a Hugging Face dataset repository. Whoever downloads it should run the validate command, which verifies every file against the checksums in the manifest.
+**The built dataset is not currently hosted anywhere.** `python -m app.dataset export` packages a validated build into `data/export/` as a folder and a repeatable zip, with a checksum list and a README carrying the metadata the Hugging Face Hub expects. It uploads nothing. [`HOSTING.md`](HOSTING.md) gives the upload steps for the Hugging Face Hub and for a GitHub Release, and what to verify afterwards.

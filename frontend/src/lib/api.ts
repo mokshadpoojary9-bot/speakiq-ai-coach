@@ -4,6 +4,8 @@
 export const API_BASE_URL: string = (import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000').replace(/\/$/, '')
 
 export type MetricStatus = 'measured' | 'estimated' | 'unavailable'
+/** 'low' means the backend saw signs that the measurement is unreliable for this recording. */
+export type Reliability = 'ok' | 'low'
 
 export interface Metric {
   status: MetricStatus
@@ -36,6 +38,12 @@ export interface AudioFeatures {
     peak_amplitude: number
   }
   waveform: Metric & { bucket_sec: number; peaks: number[] }
+  /** Absent in responses from backends older than the clipping check. */
+  clipping?: Metric & {
+    verdict: 'detected' | 'not_detected' | 'uncertain' | null
+    peak_amplitude: number | null
+    flat_top_runs: number | null
+  }
   energy: Metric & {
     series: FrameSeries | null
     mean_db: number | null
@@ -51,11 +59,14 @@ export interface AudioFeatures {
     min_hz: number | null
     max_hz: number | null
     range_semitones: number | null
+    reliability?: Reliability | null
   }
   pauses: Metric & {
     threshold_db: number | null
     min_pause_sec: number
     intervals: PauseInterval[]
+    reliability?: Reliability | null
+    threshold_rule?: 'relative_to_speech' | 'noise_floor' | null
     internal_pause_count: number | null
     total_internal_pause_sec: number | null
     speech_sec: number | null

@@ -79,6 +79,9 @@ class Mfcc(Metric):
     std: list[float] = []
 
 
+Reliability = Literal["ok", "low"]
+
+
 class Pitch(Metric):
     series: FrameSeries | None = None
     voiced_fraction: float | None = None
@@ -87,6 +90,28 @@ class Pitch(Metric):
     min_hz: float | None = None
     max_hz: float | None = None
     range_semitones: float | None = Field(default=None, description="5th to 95th percentile of voiced F0.")
+    iqr_semitones: float | None = Field(
+        default=None, description="25th to 75th percentile of voiced F0; less affected by tracking errors than the range."
+    )
+    tracking_floor_hz: float | None = Field(default=None, description="Lower search limit used for this speaker.")
+    tracking_ceiling_hz: float | None = Field(default=None, description="Upper search limit used for this speaker.")
+    octave_jump_fraction: float | None = Field(
+        default=None, description="Share of consecutive voiced frames whose pitch leaps by more than 8 semitones."
+    )
+    reliability: Reliability | None = Field(default=None, description="'low' when the contour shows signs of tracking errors.")
+
+
+class Clipping(Metric):
+    # detected: repeated flat-topped peaks. not_detected: no sign of clipping.
+    # uncertain: some evidence, or conditions under which clipping cannot be ruled out.
+    verdict: Literal["detected", "not_detected", "uncertain"] | None = None
+    peak_amplitude: float | None = None
+    flat_top_runs: int | None = Field(
+        default=None, description="Runs of 3 or more samples held at the peak level with an abrupt edge."
+    )
+    longest_flat_run_samples: int | None = None
+    flat_top_sample_fraction: float | None = None
+    near_full_scale_fraction: float | None = Field(default=None, description="Share of samples at or above 99.9% of full scale.")
 
 
 class PauseInterval(Interval):
@@ -95,6 +120,11 @@ class PauseInterval(Interval):
 
 class Pauses(Metric):
     threshold_db: float | None = None
+    threshold_rule: Literal["relative_to_speech", "noise_floor"] | None = None
+    noise_floor_db: float | None = Field(default=None, description="5th percentile of frame energy.")
+    speech_level_db: float | None = Field(default=None, description="95th percentile of frame energy.")
+    dynamic_range_db: float | None = Field(default=None, description="Speech level minus noise floor.")
+    reliability: Reliability | None = None
     min_pause_sec: float
     intervals: list[PauseInterval] = []
     internal_pause_count: int | None = None
@@ -119,6 +149,7 @@ class AudioFeatures(BaseModel):
     audio: AudioInfo
     frames: FrameConfig
     waveform: Waveform
+    clipping: Clipping
     energy: Energy
     spectral: Spectral
     mfcc: Mfcc

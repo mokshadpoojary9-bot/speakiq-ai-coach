@@ -92,6 +92,60 @@ describe('Dashboard with a real analysis', () => {
     expect(screen.getAllByText('Pitch was not computed (no tracker).')).toHaveLength(2)
   })
 
+  it('says nothing about recording quality when the backend found no problem', () => {
+    renderWith(<Dashboard />, sampleAnalysis())
+
+    expect(screen.queryByRole('list', { name: 'Recording quality notices' })).not.toBeInTheDocument()
+    expect(screen.getByText('Clipping').closest('summary')).toHaveTextContent('Measured')
+  })
+
+  it('warns about detected clipping and unreliable pitch or pause measurements', () => {
+    const result = sampleAnalysis()
+    result.features.clipping = { ...result.features.clipping!, verdict: 'detected', flat_top_runs: 412 }
+    result.features.pitch = {
+      ...result.features.pitch,
+      reliability: 'low',
+      limitations: ['Low reliability: 3.0% of frame-to-frame steps leap more than 8 semitones.'],
+    }
+    result.features.pauses = {
+      ...result.features.pauses,
+      reliability: 'low',
+      limitations: ['Low confidence: speech is only 9 dB above the background.'],
+    }
+    renderWith(<Dashboard />, result)
+
+    const notices = within(screen.getByRole('list', { name: 'Recording quality notices' })).getAllByRole('listitem')
+    expect(notices).toHaveLength(3)
+    expect(notices[0]).toHaveTextContent('Clipping detected. The recording has 412 flat-topped peaks')
+    expect(notices[1]).toHaveTextContent('Pitch tracking is unreliable for this recording. Low reliability: 3.0%')
+    expect(notices[2]).toHaveTextContent('Pause detection is unreliable for this recording. Low confidence: speech is only 9 dB')
+    expect(screen.getByText('measured, low reliability')).toBeInTheDocument()
+    expect(screen.getByText('measured, low confidence')).toBeInTheDocument()
+  })
+
+  it('distinguishes uncertain clipping from detected clipping', () => {
+    const result = sampleAnalysis()
+    result.features.clipping = {
+      ...result.features.clipping!,
+      verdict: 'uncertain',
+      limitations: ['Uncertain: the signal reaches full scale but its peaks are not flat.'],
+    }
+    renderWith(<Dashboard />, result)
+
+    const notice = within(screen.getByRole('list', { name: 'Recording quality notices' })).getByRole('listitem')
+    expect(notice).toHaveTextContent('Clipping could not be ruled out. Uncertain: the signal reaches full scale')
+    expect(notice).not.toHaveTextContent('Clipping detected')
+  })
+
+  it('still renders results from a backend that predates the clipping check', () => {
+    const result = sampleAnalysis()
+    delete result.features.clipping
+    renderWith(<Dashboard />, result)
+
+    expect(screen.getByText('152 Hz')).toBeInTheDocument()
+    expect(screen.queryByText('Clipping')).not.toBeInTheDocument()
+  })
+
   it('plays from a word’s start time when the word is chosen', async () => {
     renderWith(<Dashboard />, sampleAnalysis(), new File([new Uint8Array(64)], 'talk.wav', { type: 'audio/wav' }))
     await screen.findByText('Duration 0:04.8')
