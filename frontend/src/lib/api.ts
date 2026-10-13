@@ -249,6 +249,8 @@ export interface AnalyzeResponse {
   rules: RuleReport[]
   /** Absent in responses from backends older than rule-based coaching. */
   coaching?: CoachingTip[]
+  /** The thresholds the backend used. Only the ones the interface reads are typed. */
+  settings?: { high_quality_compared_fraction?: number }
   limitations: string[]
 }
 
@@ -318,6 +320,8 @@ export async function analyzeRecording(
   signal?: AbortSignal,
   reference?: File | null,
   transcriptReviewed = false,
+  referenceTranscript = '',
+  referenceTranscriptReviewed = false,
 ): Promise<AnalyzeResponse> {
   const form = new FormData()
   form.append('file', file, file.name)
@@ -326,6 +330,11 @@ export async function analyzeRecording(
     form.append('transcript', transcript)
     // A statement by the user, recorded as such. It only applies to text they supplied.
     if (transcriptReviewed) form.append('transcript_reviewed', 'true')
+  }
+  // The reference recording's own text is sent separately and only together with that recording.
+  if (reference && referenceTranscript.trim()) {
+    form.append('reference_transcript', referenceTranscript)
+    if (referenceTranscriptReviewed) form.append('reference_transcript_reviewed', 'true')
   }
 
   const result = await request<AnalyzeResponse>('/api/analyze', { method: 'POST', body: form, signal })

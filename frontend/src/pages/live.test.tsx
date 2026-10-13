@@ -121,6 +121,67 @@ describe('Dashboard with a real analysis', () => {
     expect(screen.queryByText(/human.verified|verified by/i)).not.toBeInTheDocument()
   })
 
+  it('shows the participant, reference and shared transcripts separately, each with its own provenance', () => {
+    const result = sampleAnalysis()
+    result.transcripts = {
+      participant: { source: 'user_provided', review_status: 'user_attested', human_verified: false, text: 'Good morning everyone. Thank you coming' },
+      reference: { source: 'machine_generated', review_status: 'not_reviewed', human_verified: false, text: 'good morning everyone thank you coming' },
+      shared_for_comparison: {
+        source: 'user_provided',
+        review_status: 'not_reviewed',
+        human_verified: false,
+        text: 'Good morning everyone. Thank you coming',
+        origin: 'participant_transcript',
+        attested_for: ['participant'],
+      },
+    }
+    renderWith(<Dashboard />, result)
+
+    const sources = within(screen.getByRole('list', { name: 'Transcript sources' })).getAllByRole('listitem')
+    expect(sources).toHaveLength(2)
+    expect(sources[0]).toHaveTextContent('Your recording: Provided by you; you stated you checked it against the recording (not independently verified)')
+    expect(sources[1]).toHaveTextContent('Reference recording: Recognised by the speech model; not reviewed')
+    // The text used to line the two up is stated separately, with where it came from.
+    expect(screen.getByText(/^Transcript used: Provided by you; you stated you checked it against your recording only/)).toBeInTheDocument()
+    expect(screen.getByText('Your transcript was used to line up both recordings.')).toBeInTheDocument()
+  })
+
+  it('lists only the participant transcript when there is no reference', () => {
+    const result = sampleAnalysis()
+    result.reference = null
+    result.alignment_status = { ...result.alignment_status, status: 'no_reference' }
+    result.transcripts = { ...result.transcripts, reference: null, shared_for_comparison: null }
+    renderWith(<Dashboard />, result)
+
+    const sources = within(screen.getByRole('list', { name: 'Transcript sources' })).getAllByRole('listitem')
+    expect(sources).toHaveLength(1)
+    expect(sources[0]).toHaveTextContent('Your recording: Provided by you; not reviewed')
+  })
+
+  it('warns when too little of the transcript could be compared to trust the comparison', () => {
+    const thin = sampleAnalysis()
+    thin.alignment_status = { ...thin.alignment_status, transcript_word_count: 40, words_compared: 26 }
+    const view = renderWith(<Dashboard />, thin)
+    const warning = screen.getByRole('note', { name: 'Comparison reliability' })
+    expect(warning).toHaveTextContent('Only 26 of 40 transcript words (65%) could be compared')
+    expect(warning).toHaveTextContent('recognition was unreliable for the rest')
+    view.unmount()
+
+    const solid = sampleAnalysis()
+    solid.alignment_status = { ...solid.alignment_status, transcript_word_count: 40, words_compared: 36 }
+    renderWith(<Dashboard />, solid)
+    expect(screen.queryByRole('note', { name: 'Comparison reliability' })).not.toBeInTheDocument()
+  })
+
+  it('uses the backend’s own threshold for that warning when it reports one', () => {
+    const result = sampleAnalysis()
+    result.alignment_status = { ...result.alignment_status, transcript_word_count: 40, words_compared: 36 }
+    result.settings = { high_quality_compared_fraction: 0.95 }
+    renderWith(<Dashboard />, result)
+
+    expect(screen.getByRole('note', { name: 'Comparison reliability' })).toHaveTextContent('Only 36 of 40 transcript words (90%)')
+  })
+
   it('says the provenance is unknown when the backend did not report it', () => {
     const result = sampleAnalysis()
     delete (result as Partial<AnalyzeResponse>).transcripts

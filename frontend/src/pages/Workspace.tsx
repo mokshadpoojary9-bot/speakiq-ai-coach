@@ -83,6 +83,7 @@ function RunError({ error, onRetry }: { error: ApiError; onRetry: () => void }) 
 export default function Workspace() {
   const fileInputId = useId()
   const referenceInputId = useId()
+  const referenceTranscriptId = useId()
   const transcriptId = useId()
   const { setSession } = useAnalysisSession()
   const [file, setFile] = useState<File | null>(null)
@@ -91,6 +92,8 @@ export default function Workspace() {
   const [referenceError, setReferenceError] = useState<string | null>(null)
   const [transcript, setTranscript] = useState('')
   const [reviewed, setReviewed] = useState(false)
+  const [referenceTranscript, setReferenceTranscript] = useState('')
+  const [referenceReviewed, setReferenceReviewed] = useState(false)
   const [run, setRun] = useState<RunState>({ kind: 'idle' })
   const controller = useRef<AbortController | null>(null)
 
@@ -123,7 +126,15 @@ export default function Workspace() {
     controller.current = current
     setRun({ kind: 'running', startedAt: Date.now() })
     try {
-      const result = await analyzeRecording(file, transcript, current.signal, reference, reviewed)
+      const result = await analyzeRecording(
+        file,
+        transcript,
+        current.signal,
+        reference,
+        reviewed,
+        referenceTranscript,
+        referenceReviewed,
+      )
       setSession({ result, file, analysedAt: new Date() })
       setRun({ kind: 'done', result })
     } catch (error) {
@@ -208,10 +219,42 @@ export default function Workspace() {
               </div>
             ) : (
               reference && (
-                <p className="mt-2 text-sm">
-                  <span className="font-medium">{reference.name}</span>
-                  <span className="ml-2 font-mono text-xs text-muted">{formatBytes(reference.size)}</span>
-                </p>
+                <>
+                  <p className="mt-2 text-sm">
+                    <span className="font-medium">{reference.name}</span>
+                    <span className="ml-2 font-mono text-xs text-muted">{formatBytes(reference.size)}</span>
+                  </p>
+                  <label htmlFor={referenceTranscriptId} className="mt-4 block text-sm text-muted">
+                    Text of the reference recording
+                  </label>
+                  <textarea
+                    id={referenceTranscriptId}
+                    value={referenceTranscript}
+                    onChange={(event) => setReferenceTranscript(event.target.value)}
+                    disabled={running}
+                    rows={4}
+                    maxLength={20000}
+                    placeholder="Optional. Leave empty if it is the same text as yours."
+                    className="mt-2 block w-full resize-y rounded-lg border border-line bg-ink-900 p-3 text-sm leading-relaxed placeholder:text-muted/60 disabled:opacity-60"
+                  />
+                  <p className="mt-2 text-xs text-muted">
+                    Kept separate from your transcript. If the two contain different words, the recordings are not
+                    compared word for word and the dashboard says so.
+                  </p>
+                  <label className="mt-3 flex items-start gap-2 text-sm">
+                    <input
+                      type="checkbox"
+                      checked={referenceReviewed}
+                      disabled={running || countWords(referenceTranscript) === 0}
+                      onChange={(event) => setReferenceReviewed(event.target.checked)}
+                      className="mt-0.5 h-4 w-4 accent-[#3ecf8e]"
+                    />
+                    <span>
+                      I have checked this text against the reference recording
+                      <span className="block text-xs text-muted">Recorded as your statement; the app cannot verify it.</span>
+                    </span>
+                  </label>
+                </>
               )
             )}
           </div>

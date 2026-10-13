@@ -147,6 +147,41 @@ describe('Workspace analysis', () => {
     expect((body.get('reference') as File).name).toBe('model-take.wav')
   })
 
+  it('offers a separate reference transcript only once a reference recording is chosen, and sends it separately', async () => {
+    vi.mocked(fetch).mockResolvedValue(jsonResponse(sampleAnalysis()))
+    renderWorkspace()
+    chooseFile()
+    expect(screen.queryByLabelText('Text of the reference recording')).not.toBeInTheDocument()
+
+    fireEvent.change(screen.getByLabelText(/^Reference recording/), { target: { files: [audio('model-take.wav')] } })
+    await userEvent.type(screen.getByLabelText('The text you were delivering'), 'my own words')
+    await userEvent.type(screen.getByLabelText('Text of the reference recording'), 'the reference words')
+    await userEvent.click(screen.getByRole('checkbox', { name: /I have checked this text against the reference recording/ }))
+    await run()
+
+    await screen.findByRole('region', { name: 'Analysis complete' })
+    const body = vi.mocked(fetch).mock.calls[0][1]?.body as FormData
+    expect(body.get('transcript')).toBe('my own words')
+    expect(body.get('reference_transcript')).toBe('the reference words')
+    expect(body.get('reference_transcript_reviewed')).toBe('true')
+    expect(body.has('transcript_reviewed')).toBe(false) // each statement covers only its own recording
+  })
+
+  it('does not send a reference transcript without a reference recording or without text', async () => {
+    vi.mocked(fetch).mockResolvedValue(jsonResponse(sampleAnalysis()))
+    renderWorkspace()
+    chooseFile()
+    fireEvent.change(screen.getByLabelText(/^Reference recording/), { target: { files: [audio('model-take.wav')] } })
+    expect(screen.getByRole('checkbox', { name: /I have checked this text against the reference recording/ })).toBeDisabled()
+
+    await run()
+
+    await screen.findByRole('region', { name: 'Analysis complete' })
+    const body = vi.mocked(fetch).mock.calls[0][1]?.body as FormData
+    expect(body.has('reference_transcript')).toBe(false)
+    expect(body.has('reference_transcript_reviewed')).toBe(false)
+  })
+
   it('rejects an unsupported reference file without sending it', async () => {
     vi.mocked(fetch).mockResolvedValue(jsonResponse(sampleAnalysis()))
     renderWorkspace()

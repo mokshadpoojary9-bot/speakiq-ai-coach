@@ -19,6 +19,12 @@ const chipClass: Record<DisplayWord['status'], string> = {
   unaligned: 'border-dashed border-line text-muted',
 }
 
+const sharedOrigin = {
+  participant_transcript: 'Your transcript was used to line up both recordings.',
+  reference_transcript: 'The reference recording’s transcript was used to line up both recordings.',
+  reference_recognition: 'The text recognised in the reference recording was used to line up both recordings.',
+} as const
+
 function Unavailable({ title, message }: { title: string; message: string | null }) {
   return (
     <div role="status" className="rounded-lg border border-warn/40 bg-warn/5 p-4">
@@ -103,6 +109,22 @@ export function TranscriptPanel({
           )}
           .
         </p>
+        {result.transcripts?.shared_for_comparison?.origin && (
+          <p className="mt-1 text-xs text-muted">{sharedOrigin[result.transcripts.shared_for_comparison.origin]}</p>
+        )}
+        {result.transcripts && (
+          <ul aria-label="Transcript sources" className="mt-2 space-y-1 text-xs text-muted">
+            <li>
+              <span className="text-fg">Your recording:</span> {describeTranscript({ ...result.transcripts.participant, origin: undefined })}
+            </li>
+            {result.transcripts.reference && (
+              <li>
+                <span className="text-fg">Reference recording:</span>{' '}
+                {describeTranscript({ ...result.transcripts.reference, origin: undefined })}
+              </li>
+            )}
+          </ul>
+        )}
 
         {supplied && alignment && (
           <p className="mt-2 text-sm text-muted">

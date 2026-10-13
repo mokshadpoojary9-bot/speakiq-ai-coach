@@ -123,13 +123,13 @@ Run the backend and the frontend in two separate terminals. The frontend footer 
 
 ### Using it
 
-1. Open the **Workspace**, choose a WAV, MP3, OGG or FLAC file, and optionally paste the text you were delivering and add a reference recording of the same text.
+1. Open the **Workspace**, choose a WAV, MP3, OGG or FLAC file, and optionally paste the text you were delivering and add a reference recording of the same text. Once a reference is chosen you can also give its own text separately; if the two texts contain different words, the recordings are not compared word for word.
 2. Press **Run analysis**. The file goes to `POST /api/analyze` on your backend.
 3. The result shows which steps completed, the recognised text, a time for each word and how many findings there are. **Open the dashboard** for the findings with their intervals and evidence, the rules that were checked or withheld, the waveform, playback (select a word or a finding to play from it), measured contours, and each metric's method and limitations.
 4. The **Acoustic Twin** shows the same recording's measured energy and pitch in 3D (or 2D).
 5. **Evidence Coach** shows the rule-based suggestions for your findings, and **Reports** a printable summary of the status, findings, suggestions and what could not be checked.
 
-Findings and suggestions for your recording come only from the rules described under [Findings](#findings-apianalyze). Ticking "I have checked this transcript against the recording" is recorded as your statement; the app never describes a transcript as verified.
+The dashboard lists each recording's transcript and where it came from separately, and warns when less than 80% of the transcript could be compared. Findings and suggestions for your recording come only from the rules described under [Findings](#findings-apianalyze). Ticking "I have checked this transcript against the recording" is recorded as your statement; the app never describes a transcript as verified.
 
 ## API
 

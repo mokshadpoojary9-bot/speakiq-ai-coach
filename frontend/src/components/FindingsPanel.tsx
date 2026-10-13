@@ -131,6 +131,10 @@ function FindingCard({
 export function FindingsPanel({ result, onSeek }: { result: AnalyzeResponse; onSeek?: (time: number) => void }) {
   const status = statusText[result.status]
   const alignment = result.alignment_status
+  // The same threshold the backend uses to cap evidence quality; 0.8 if an older backend does not report it.
+  const neededFraction = result.settings?.high_quality_compared_fraction ?? 0.8
+  const comparedFraction =
+    alignment.status === 'aligned' && alignment.transcript_word_count > 0 ? alignment.words_compared / alignment.transcript_word_count : null
   return (
     <div className="flex flex-col gap-5">
       <div role="status" className={`rounded-lg border px-4 py-3 ${status.tone === 'warn' ? 'border-warn/40 bg-warn/5' : 'border-accent/30 bg-accent/5'}`}>
@@ -164,6 +168,17 @@ export function FindingsPanel({ result, onSeek }: { result: AnalyzeResponse; onS
           (alignment.unmatched_recognised?.participant ?? 0) > 0 &&
           ` ${alignment.unmatched_recognised?.participant} words heard in your recording are not in the transcript; they were not compared and are not treated as differences.`}
       </p>
+
+      {comparedFraction !== null && comparedFraction < neededFraction && (
+        <p role="note" aria-label="Comparison reliability" className="rounded-lg border border-warn/40 bg-warn/5 px-4 py-3 text-sm">
+          <span className="font-semibold text-warn">The comparison rests on part of the recording.</span>{' '}
+          <span className="text-muted">
+            Only {alignment.words_compared} of {alignment.transcript_word_count} transcript words (
+            {Math.round(comparedFraction * 100)}%) could be compared; recognition was unreliable for the rest, or they
+            were not said. Findings that use the reference are rated no higher than moderate evidence quality.
+          </span>
+        </p>
+      )}
 
       {result.findings.length === 0 ? (
         <EmptyState
