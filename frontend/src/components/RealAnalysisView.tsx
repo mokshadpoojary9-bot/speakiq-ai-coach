@@ -4,9 +4,10 @@ import { formatTime } from '../lib/format'
 import { pauseMarkers } from '../lib/measurements'
 import type { AnalysisSession } from '../lib/session'
 import { AudioPreview } from './AudioPreview'
+import { categoryColor, FindingsPanel } from './FindingsPanel'
 import { MeasuredCharts } from './MeasuredCharts'
 import { TranscriptPanel } from './TranscriptPanel'
-import { Card, EmptyState, MetricStatusBadge } from './ui'
+import { Card, MetricStatusBadge } from './ui'
 import { WaveformTimeline } from './WaveformTimeline'
 
 function Stat({ label, value, note }: { label: string; value: string; note?: string }) {
@@ -72,7 +73,15 @@ export function RealAnalysisView({ session }: { session: AnalysisSession }) {
   const { result, file } = session
   const { features } = result
   const [seek, setSeek] = useState<{ time: number; nonce: number } | null>(null)
-  const markers = pauseMarkers(features.pauses.intervals)
+  const pauses = pauseMarkers(features.pauses.intervals)
+  const findingMarkers = result.findings.map((finding) => ({
+    id: finding.id,
+    label: finding.title,
+    start: finding.start,
+    end: finding.end,
+    color: categoryColor[finding.category],
+  }))
+  const play = file ? (time: number) => setSeek((previous) => ({ time, nonce: (previous?.nonce ?? 0) + 1 })) : undefined
   const duration = features.audio.duration_sec
 
   return (
@@ -102,14 +111,18 @@ export function RealAnalysisView({ session }: { session: AnalysisSession }) {
           Recording
         </h2>
         <p className="mt-1 mb-4 text-sm text-muted">
-          Waveform peaks measured by the backend. Shaded bands are detected silences
-          {features.pauses.status === 'unavailable' && ' (unavailable for this recording)'}.
+          Waveform peaks measured by the backend. Shaded bands are{' '}
+          {findingMarkers.length > 0 ? 'the intervals of the findings below' : 'detected silences'}
+          {features.pauses.status === 'unavailable' && findingMarkers.length === 0 && ' (unavailable for this recording)'}.
         </p>
         <WaveformTimeline
           peaks={features.waveform.peaks}
           durationSec={duration}
-          markers={markers}
-          description={`Measured waveform of ${features.audio.filename}, ${formatTime(duration)} long, with ${markers.length} detected silences shaded`}
+          markers={findingMarkers.length > 0 ? findingMarkers : pauses}
+          description={`Measured waveform of ${features.audio.filename}, ${formatTime(duration)} long, with ${
+            findingMarkers.length > 0 ? `${findingMarkers.length} finding intervals` : `${pauses.length} detected silences`
+          } shaded`}
+          onSelect={play && findingMarkers.length > 0 ? (id) => play(findingMarkers.find((m) => m.id === id)?.start ?? 0) : undefined}
         />
         {file && (
           <div className="mt-5">
@@ -122,27 +135,21 @@ export function RealAnalysisView({ session }: { session: AnalysisSession }) {
         <h2 id="transcript-result-heading" className="mb-4 text-lg font-semibold">
           Transcript and word timing
         </h2>
-        <TranscriptPanel
-          result={result}
-          onSeek={file ? (time) => setSeek((previous) => ({ time, nonce: (previous?.nonce ?? 0) + 1 })) : undefined}
-        />
+        <TranscriptPanel result={result} onSeek={play} />
       </Card>
 
       <Card aria-labelledby="measured-charts-heading">
         <h2 id="measured-charts-heading" className="mb-4 text-lg font-semibold">
           Measured contours
         </h2>
-        <MeasuredCharts features={features} markers={markers} />
+        <MeasuredCharts features={features} markers={pauses} />
       </Card>
 
       <Card aria-labelledby="real-findings-heading">
         <h2 id="real-findings-heading" className="mb-4 text-lg font-semibold">
           Findings
         </h2>
-        <EmptyState
-          title="No findings for this recording"
-          description="Flaw detection and baseline comparison are not implemented yet, so this recording has measurements but no flagged flaws, severities or coaching. Nothing has been judged good or bad."
-        />
+        <FindingsPanel result={result} onSeek={play} />
       </Card>
 
       <Card aria-labelledby="methods-heading">

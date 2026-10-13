@@ -28,12 +28,12 @@ const steps = [
   {
     title: 'Contrast against a baseline',
     body: 'The same transcript, delivered well, becomes the reference for pitch, energy, pace and pauses.',
-    status: 'Shown with demo data',
+    status: 'Works today when you add a reference recording',
   },
   {
     title: 'See every flaw on the timeline',
-    body: 'Each finding carries a start and end time, its supporting evidence, a confidence level and its limitations.',
-    status: 'Shown with demo data',
+    body: 'Each finding carries a start and end time, its supporting evidence, its evidence quality and its limitations.',
+    status: 'Works today for pace, pauses, fillers and pitch variation',
   },
   {
     title: 'Get coaching tied to the evidence',
@@ -63,9 +63,10 @@ export default function Landing() {
           </Link>
         </div>
         <p className="mt-6 max-w-2xl text-sm text-muted">
-          <strong className="font-medium text-warn">Early build.</strong> Uploading a recording gives you real acoustic
-          measurements, a transcript and word timing. Baseline comparison, flaw detection and coaching are not built
-          yet; those views run on a clearly labelled demo fixture.
+          <strong className="font-medium text-warn">Early build.</strong> Uploading a recording, with an optional
+          reference recording of the same text, gives you real measurements, a transcript, word timing and findings
+          with their evidence. Coaching and reports are not built yet; those views run on a clearly labelled demo
+          fixture.
         </p>
       </section>
 

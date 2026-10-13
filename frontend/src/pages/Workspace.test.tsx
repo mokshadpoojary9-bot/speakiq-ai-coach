@@ -105,8 +105,64 @@ describe('Workspace analysis', () => {
     expect(within(result).getByText(/Heard but not in your transcript: “for” \(0:03.4\)/)).toBeInTheDocument()
 
     expect(within(result).getByRole('link', { name: 'Open the dashboard' })).toHaveAttribute('href', '/dashboard')
-    expect(within(result).getByText(/Flaw detection, baseline comparison and coaching.*not implemented/)).toBeInTheDocument()
+    expect(within(result).getByText(/^1 finding\./)).toBeInTheDocument()
+    expect(within(result).getByText(/Compared with reference.wav\./)).toBeInTheDocument()
+    expect(body.has('reference')).toBe(false)
     expect(screen.getByTestId('session')).toHaveTextContent('talk.wav')
+  })
+
+  it('sends an optional reference recording with the request', async () => {
+    vi.mocked(fetch).mockResolvedValue(jsonResponse(sampleAnalysis()))
+    renderWorkspace()
+    chooseFile()
+    fireEvent.change(screen.getByLabelText(/^Reference recording/), { target: { files: [audio('model-take.wav')] } })
+    expect(screen.getByText('model-take.wav')).toBeInTheDocument()
+
+    await run()
+
+    await screen.findByRole('region', { name: 'Analysis complete' })
+    const body = vi.mocked(fetch).mock.calls[0][1]?.body as FormData
+    expect((body.get('file') as File).name).toBe('talk.wav')
+    expect((body.get('reference') as File).name).toBe('model-take.wav')
+  })
+
+  it('rejects an unsupported reference file without sending it', async () => {
+    vi.mocked(fetch).mockResolvedValue(jsonResponse(sampleAnalysis()))
+    renderWorkspace()
+    chooseFile()
+    fireEvent.change(screen.getByLabelText(/^Reference recording/), {
+      target: { files: [new File(['x'], 'slides.pdf', { type: 'application/pdf' })] },
+    })
+
+    expect(screen.getByRole('alert')).toHaveTextContent(/That reference file can’t be used.*slides.pdf/)
+    await run()
+
+    await screen.findByRole('region', { name: 'Analysis complete' })
+    expect((vi.mocked(fetch).mock.calls[0][1]?.body as FormData).has('reference')).toBe(false)
+  })
+
+  it('summarises a result with no supported findings and one that is only partial', async () => {
+    const clean = sampleAnalysis()
+    clean.status = 'completed_no_findings'
+    clean.findings = []
+    clean.reference = null
+    clean.alignment_status = { ...clean.alignment_status, status: 'no_reference', reason: 'No reference recording was supplied.' }
+    const partial = sampleAnalysis()
+    partial.status = 'partial'
+    partial.findings = []
+    partial.alignment_status = { ...partial.alignment_status, status: 'unavailable', reason: 'The two recordings were aligned to different transcripts.' }
+    vi.mocked(fetch).mockResolvedValueOnce(jsonResponse(clean)).mockResolvedValueOnce(jsonResponse(partial))
+    renderWorkspace()
+    chooseFile()
+
+    await run()
+    const first = await screen.findByRole('region', { name: 'Analysis complete' })
+    expect(within(first).getByText('No supported findings.')).toBeInTheDocument()
+    expect(within(first).getByText(/No reference recording was used\./)).toBeInTheDocument()
+
+    await run()
+    expect(await screen.findByText('Partial analysis.')).toBeInTheDocument()
+    expect(screen.getByText(/The reference was not used: The two recordings were aligned to different transcripts\./)).toBeInTheDocument()
   })
 
   it('omits the transcript when none was typed and shows the recognised words instead', async () => {

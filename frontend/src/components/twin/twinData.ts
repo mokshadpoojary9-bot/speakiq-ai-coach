@@ -124,6 +124,6 @@ export function twinFromFeatures(features: AudioFeatures): TwinData | null {
       { color: PAUSE_COLOR, label: 'Detected pause' },
       { color: colors.baseline, label: 'Silence before or after speech' },
     ],
-    summary: `Measured from ${audio.filename}. Bar height shows frame energy averaged into ${count} time steps; coloured bars are detected silences. There is no baseline row because baseline comparison is not implemented.`,
+    summary: `Measured from ${audio.filename}. Bar height shows frame energy averaged into ${count} time steps; coloured bars are detected silences. Only this recording is drawn; the reference recording, if one was used, is not shown here.`,
   }
 }

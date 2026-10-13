@@ -133,12 +133,97 @@ export interface ComponentStatus {
   message: string | null
 }
 
+export type FindingCategory =
+  | 'rushed_delivery'
+  | 'slow_delivery'
+  | 'excessive_pause'
+  | 'filler_word'
+  | 'uneven_pacing'
+  | 'pitch_monotony'
+  | 'unclear_articulation'
+
+export interface TimeSpan {
+  start: number
+  end: number
+}
+
+export interface FindingEvidence {
+  feature: string
+  unit: string
+  participant_value: number | null
+  reference_value: number | null
+  difference: number | null
+  ratio: number | null
+}
+
+/** A measured difference that crossed a documented threshold. Named to avoid the demo fixture's `Finding`. */
+export interface DetectedFinding {
+  id: string
+  category: FindingCategory
+  title: string
+  /** In the participant recording. */
+  start: number
+  end: number
+  reference_interval: TimeSpan | null
+  evidence: FindingEvidence[]
+  comparison_method: string
+  rule: { rule_id: string; description: string; thresholds: Record<string, number | string> }
+  evidence_quality: 'high' | 'moderate' | 'low'
+  /** A magnitude band of the measured difference; null when no tested rule supports one. */
+  severity: 'minor' | 'moderate' | 'major' | null
+  severity_basis: string | null
+  explanation: string
+  limitations: string[]
+}
+
+export interface RuleReport {
+  rule_id: string
+  category: FindingCategory
+  status: 'triggered' | 'not_triggered' | 'withheld' | 'not_supported'
+  reason: string
+  findings: number
+  measured: Record<string, number | null>
+  thresholds: Record<string, number | string>
+}
+
+export interface SignalQuality {
+  usable: boolean
+  issues: { code: string; level: 'blocking' | 'warning'; message: string; affects: string[] }[]
+}
+
+export interface AlignmentStatus {
+  status: 'aligned' | 'unavailable' | 'no_reference'
+  reason: string
+  strategy: string
+  transcript_source: 'user_provided' | 'machine_generated' | 'none'
+  transcript_word_count: number
+  words_compared: number
+  participant_window: TimeSpan | null
+  reference_window: TimeSpan | null
+  normalization: string
+}
+
+export interface TranscriptInfo {
+  source: 'user_provided' | 'machine_generated' | 'none'
+  /** The API has no evidence of human review and never reports any. */
+  human_verified: false
+  text: string | null
+}
+
 export interface AnalyzeResponse {
   is_demo: false
+  /** completed: findings. completed_no_findings: checked, nothing over threshold. partial: something could not run. */
+  status: 'completed' | 'completed_no_findings' | 'partial'
   components: { features: ComponentStatus; transcription: ComponentStatus; alignment: ComponentStatus }
+  signal_quality: SignalQuality
   features: AudioFeatures
   transcription: Transcription | null
   alignment: Alignment | null
+  transcripts: { participant: TranscriptInfo; reference: TranscriptInfo | null; shared_for_comparison: TranscriptInfo | null }
+  reference: { filename: string; duration_sec: number; signal_quality: SignalQuality } | null
+  alignment_status: AlignmentStatus
+  findings: DetectedFinding[]
+  rules: RuleReport[]
   limitations: string[]
 }
 
@@ -198,14 +283,23 @@ export function fetchHealth(signal?: AbortSignal): Promise<HealthResponse> {
   return request<HealthResponse>('/api/health', { signal })
 }
 
-/** Runs acoustic features, transcription and word alignment on one recording. */
-export async function analyzeRecording(file: File, transcript: string, signal?: AbortSignal): Promise<AnalyzeResponse> {
+/**
+ * Measures the recording, transcribes and aligns it, and applies the delivery rules. With a
+ * `reference` recording of the same text, the rules compare the two over the words recognised in both.
+ */
+export async function analyzeRecording(
+  file: File,
+  transcript: string,
+  signal?: AbortSignal,
+  reference?: File | null,
+): Promise<AnalyzeResponse> {
   const form = new FormData()
   form.append('file', file, file.name)
+  if (reference) form.append('reference', reference, reference.name)
   if (transcript.trim()) form.append('transcript', transcript)
 
   const result = await request<AnalyzeResponse>('/api/analyze', { method: 'POST', body: form, signal })
-  if (!result || typeof result !== 'object' || !result.features || !result.components) {
+  if (!result || typeof result !== 'object' || !result.features || !result.components || !Array.isArray(result.findings)) {
     throw new ApiError('invalid_response', 'The backend response did not contain an analysis.')
   }
   return result

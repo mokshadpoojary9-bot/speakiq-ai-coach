@@ -66,7 +66,7 @@ function TwinContent({ data, provenance }: { data: TwinData; provenance: string 
               <li>Bar height is measured frame energy, averaged within each time step and scaled to this recording’s loudest frame.</li>
               <li>In 3D, the line above the bars traces measured pitch in semitones from this speaker’s median, with gaps where speech is unvoiced. The line is drawn within one octave either side; the 2D data table has the exact values.</li>
               <li>Coloured bars and shaded bands are detected silences. They are not flaws.</li>
-              <li>There is no baseline row: baseline comparison and flaw detection are not implemented yet.</li>
+              <li>Only your recording is drawn. Findings from a comparison with a reference are on the dashboard, not here.</li>
             </>
           ) : (
             <>

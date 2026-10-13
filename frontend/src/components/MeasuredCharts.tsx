@@ -100,8 +100,8 @@ export function MeasuredCharts({ features, markers }: { features: AudioFeatures;
         </figure>
       ))}
       <p className="text-xs text-muted lg:col-span-3">
-        Shaded bands are detected silences. These charts show this recording only; there is no baseline line because
-        baseline comparison is not implemented.
+        Shaded bands are detected silences. These charts show this recording only; a reference recording, if one was
+        used, is compared in the findings rather than drawn here.
       </p>
     </div>
   )

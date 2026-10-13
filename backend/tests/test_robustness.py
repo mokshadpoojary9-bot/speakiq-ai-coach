@@ -353,3 +353,51 @@ def test_silence_has_no_clipping_and_does_not_divide_by_zero():
     result = extract_features(loaded(silence(1.0))).clipping
 
     assert (result.verdict, result.flat_top_runs, result.peak_amplitude) == ("not_detected", 0, 0)
+
+
+# --- Configurable pitch range and the stability check (Milestone 5.2) -------------------------
+
+
+def test_the_pitch_search_range_is_configurable():
+    from app.audio.pitch import PitchSettings
+
+    very_low = loaded(voice(45, 2.0))
+
+    default = extract_features(very_low).pitch
+    widened = extract_features(very_low, pitch_settings=PitchSettings(min_hz=35)).pitch
+    narrowed = extract_features(loaded(voice(80, 2.0)), pitch_settings=PitchSettings(min_hz=120, max_hz=400)).pitch
+
+    # Below the default 50 Hz floor the true pitch cannot be reported; lowering the floor makes it trackable.
+    assert default.median_hz is None or abs(semitones(default.median_hz, 45)) > 3
+    assert abs(semitones(widened.median_hz, 45)) < 0.5
+    assert "First pass 35-600 Hz" in widened.method
+    # A floor above the voice cannot produce the true pitch either, and never reports a value below the floor.
+    assert narrowed.min_hz is None or narrowed.min_hz >= 120
+
+
+@pytest.mark.parametrize("bounds", [(0, 600), (300, 200), (50, 5000), (10, 100)])
+def test_invalid_pitch_ranges_are_rejected(bounds):
+    from app.audio.pitch import PitchSettings
+
+    with pytest.raises(ValueError, match="pitch range"):
+        PitchSettings(min_hz=bounds[0], max_hz=bounds[1])
+
+
+@pytest.mark.parametrize("f0", [60, 85, 150, 300])
+def test_steady_voices_pass_the_stability_check(f0):
+    result = extract_features(loaded(voice(f0, 2.0))).pitch
+
+    assert result.range_sensitivity_semitones is not None
+    assert result.range_sensitivity_semitones < 0.3
+    assert result.reliability == "ok"
+
+
+def test_pitch_range_settings_come_from_the_environment(monkeypatch):
+    from app.config import Settings
+
+    monkeypatch.setenv("PITCH_MIN_HZ", "40")
+    monkeypatch.setenv("PITCH_MAX_HZ", "450")
+
+    settings = Settings().pitch_settings
+
+    assert (settings.min_hz, settings.max_hz) == (40, 450)

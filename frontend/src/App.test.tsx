@@ -27,7 +27,7 @@ describe('App shell and navigation', () => {
   it('states on the landing page what is real and what is still demo data', () => {
     renderAt('/')
 
-    expect(screen.getByText(/flaw detection and coaching are not built\s+yet/i)).toBeInTheDocument()
+    expect(screen.getByText(/Coaching and reports are not built yet/i)).toBeInTheDocument()
   })
 
   it('navigates to each page and marks the active link', async () => {

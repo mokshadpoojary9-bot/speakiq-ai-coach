@@ -98,6 +98,9 @@ class Pitch(Metric):
     octave_jump_fraction: float | None = Field(
         default=None, description="Share of consecutive voiced frames whose pitch leaps by more than 8 semitones."
     )
+    range_sensitivity_semitones: float | None = Field(
+        default=None, description="How much the range moves when the tracker's lower limit is nudged; large values mean unstable tracking."
+    )
     reliability: Reliability | None = Field(default=None, description="'low' when the contour shows signs of tracking errors.")
 
 

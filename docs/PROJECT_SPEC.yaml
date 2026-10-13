@@ -230,4 +230,18 @@ milestones:
       - "Dataset hosting: a reproducible export and upload guide for a public host; never claim publication without a successful upload; never upload private recordings."
       - "Baseline comparison and flaw detection: design the reference-versus-participant interfaces; implement only what actual measurements and valid aligned intervals support; fabricate nothing."
       - "Regression tests for every issue; honest reporting of anything that cannot be fixed reliably."
+  - id: 5.2
+    name: "Verified baseline comparison and temporal flaw detection"
+    source: "Summarised from the owner's Milestone 5.2 build prompt, which was received in full. Acceptance checklist: docs/MILESTONE_5_2_ACCEPTANCE.md."
+    tasks:
+      - "A typed, testable analysis service taking participant audio, optional reference audio, optional transcripts and validated default settings, with structured validation errors."
+      - "Record whether transcripts are machine-generated, user-provided or human-verified; never claim human verification without evidence."
+      - "Compare equivalent spoken content through word alignment; withhold comparison findings and state the limitation when transcripts differ, alignment is missing or the reference is unsuitable."
+      - "Compare rate and pauses over appropriate intervals, pitch only over valid voiced segments with speaker-aware normalisation, and energy or spectral features only when compatible. Document window, alignment strategy, normalisation, units and thresholds."
+      - "Configurable, transparent rules for rushed or slow delivery, excessive or irregular pauses, filler words when transcription supports them, uneven pacing, possible pitch monotony, and articulation only when a defensible measurement exists."
+      - "Each finding: stable ID, category, participant interval, measured evidence, reference values, units, method, rule and threshold, evidence quality, limitations, explanation, and severity only when a documented, tested rule supports it."
+      - "Do not penalise accent, identity, naturally high or low pitch or speaking style; claim no causality or clinical validity."
+      - "Pitch and signal-quality safeguards: configurable pitch range, valid low pitch handled, unreliable pitch marked low quality, clipping and noise checks reused."
+      - "Reuse existing routes; typed request and response models; safe errors; the frontend distinguishes findings, no supported findings, partial analysis, invalid input and processing failure."
+      - "Deterministic regression tests for the twelve listed areas, with no fabricated values."
   # Milestones 6 and later: not yet supplied by the owner.

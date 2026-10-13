@@ -1,6 +1,6 @@
 // TEST MOCK of a backend /api/analyze response. Hand-written for tests; not produced by any real recording.
 
-import type { AnalyzeResponse, ComponentStatus, Metric } from '../lib/api'
+import type { AnalyzeResponse, ComponentStatus, FindingCategory, Metric, RuleReport } from '../lib/api'
 
 const metric = (status: Metric['status'], method: string, limitations: string[] = []): Metric => ({
   status,
@@ -10,6 +10,16 @@ const metric = (status: Metric['status'], method: string, limitations: string[] 
 
 const completed: ComponentStatus = { status: 'completed', code: null, message: null }
 
+const checked = (rule_id: string, category: FindingCategory, status: RuleReport['status'] = 'not_triggered', reason = ''): RuleReport => ({
+  rule_id,
+  category,
+  status,
+  reason,
+  findings: status === 'triggered' ? 1 : 0,
+  measured: {},
+  thresholds: {},
+})
+
 const DURATION = 4.8
 const ENERGY = Array.from({ length: 48 }, (_, i) => (i >= 20 && i < 28 ? -70 : -20 + (i % 4)))
 const PITCH = Array.from({ length: 48 }, (_, i) => (i >= 20 && i < 28 ? null : 150 + (i % 5)))
@@ -18,7 +28,55 @@ const PITCH = Array.from({ length: 48 }, (_, i) => (i >= 20 && i < 28 ? null : 1
 export function sampleAnalysis(): AnalyzeResponse {
   return {
     is_demo: false,
+    status: 'completed',
     components: { features: completed, transcription: completed, alignment: completed },
+    signal_quality: { usable: true, issues: [] },
+    transcripts: {
+      participant: { source: 'user_provided', human_verified: false, text: 'Good morning everyone. Thank you coming' },
+      reference: { source: 'machine_generated', human_verified: false, text: 'good morning everyone thank you coming' },
+      shared_for_comparison: { source: 'user_provided', human_verified: false, text: 'Good morning everyone. Thank you coming' },
+    },
+    reference: { filename: 'reference.wav', duration_sec: 4.1, signal_quality: { usable: true, issues: [] } },
+    alignment_status: {
+      status: 'aligned',
+      reason: '',
+      strategy: 'Both recordings are aligned to one shared transcript.',
+      transcript_source: 'user_provided',
+      transcript_word_count: 6,
+      words_compared: 5,
+      participant_window: { start: 0.1, end: 4.4 },
+      reference_window: { start: 0.1, end: 3.7 },
+      normalization: 'Pitch is converted to semitones relative to each speaker.',
+    },
+    findings: [
+      {
+        id: 'pause_vs_reference:2000-2800',
+        category: 'excessive_pause',
+        title: 'Longer pause than the reference',
+        start: 2.0,
+        end: 2.8,
+        reference_interval: { start: 1.0, end: 1.9 },
+        evidence: [
+          { feature: 'silence_between_the_same_words', unit: 's', participant_value: 0.8, reference_value: 0.1, difference: 0.7, ratio: 8 },
+        ],
+        comparison_method: 'Measured silence between the same words in both recordings.',
+        rule: { rule_id: 'pause_vs_reference', description: 'Flag a pause longer than the reference by more than the threshold.', thresholds: { pause_excess_sec: 0.4 } },
+        evidence_quality: 'high',
+        severity: 'minor',
+        severity_basis: 'Extra silence beyond the reference (0.70 s): minor below 0.8 s.',
+        explanation: 'There are 0.80 s of silence after ‘everyone.’, where the reference has 0.10 s.',
+        limitations: ['A longer pause can be deliberate.'],
+      },
+    ],
+    rules: [
+      checked('pace_vs_reference', 'rushed_delivery'),
+      checked('pace_vs_reference', 'slow_delivery'),
+      checked('pause_vs_reference', 'excessive_pause', 'triggered'),
+      checked('pacing_vs_reference', 'uneven_pacing', 'withheld', 'Needs at least 3 runs of 5 consecutive aligned words; found 1.'),
+      checked('filler_lexicon', 'filler_word', 'not_triggered', 'None were recognised. Speech recognisers often leave fillers out.'),
+      checked('pitch_range_vs_reference', 'pitch_monotony'),
+      checked('articulation', 'unclear_articulation', 'not_supported', 'No defensible measurement is available.'),
+    ],
     features: {
       is_demo: false,
       audio: {
@@ -114,7 +172,7 @@ export function sampleAnalysis(): AnalyzeResponse {
       unmatched_recognized: [{ word: 'for', start: 3.4, end: 3.6, probability: 0.99 }],
       limitations: ['Timing accuracy is that of the recogniser.'],
     },
-    limitations: ['No comparison with a baseline delivery and no flaw detection is performed yet.'],
+    limitations: ['Findings are measured differences that crossed a documented threshold.'],
   }
 }
 

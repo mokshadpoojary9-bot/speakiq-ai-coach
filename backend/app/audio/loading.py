@@ -13,6 +13,8 @@ SUPPORTED_EXTENSIONS = (".wav", ".flac", ".ogg", ".mp3")
 LOSSY_EXTENSIONS = (".ogg", ".mp3")
 ANALYSIS_SAMPLE_RATE = 16_000
 MIN_DURATION_SEC = 0.3
+MIN_SAMPLE_RATE_HZ = 8_000
+MAX_CHANNELS = 2
 
 
 class AudioError(Exception):
@@ -107,6 +109,12 @@ def load_audio(data: bytes, filename: str, *, max_duration_sec: float) -> Loaded
         raise AudioError(415, "undecodable_audio", f"The file could not be decoded as audio. Supported: {supported}.") from error
 
     channels = samples.shape[1]
+    if sample_rate < MIN_SAMPLE_RATE_HZ:
+        raise AudioError(
+            400, "sample_rate_too_low", f"The recording's sample rate is {sample_rate} Hz; at least {MIN_SAMPLE_RATE_HZ} Hz is needed for speech analysis."
+        )
+    if channels > MAX_CHANNELS:
+        raise AudioError(400, "too_many_channels", f"The recording has {channels} channels; mono or stereo is needed.")
     mono = samples.mean(axis=1)
     duration = len(mono) / sample_rate
     if duration < MIN_DURATION_SEC:

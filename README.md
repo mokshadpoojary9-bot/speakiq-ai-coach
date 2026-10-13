@@ -9,16 +9,18 @@ The full specification lives in [`docs/PROJECT_SPEC.yaml`](docs/PROJECT_SPEC.yam
 | Area | State |
 | --- | --- |
 | Backend API: health, acoustic features, transcription, word alignment, combined analysis | Working (see [API](#api)) |
-| Backend comparison of a participant recording with a reference (`POST /api/compare`) | Working for measured differences only; not used by the frontend yet |
+| Findings with intervals and evidence for pace, pauses, fillers, uneven pacing and pitch variation (`POST /api/analyze`, optional reference recording) | Working; shown on the dashboard. See [Findings](#findings-apianalyze) |
+| Raw comparison of two recordings (`POST /api/compare`) | Working for measured differences only; the frontend uses `/api/analyze` instead |
 | Recording-quality checks: clipping, pitch-tracking reliability, noisy-pause confidence | Working; shown on the dashboard |
 | Local transcription with faster-whisper | Working; no Hugging Face token needed for the default model |
 | Frontend pages: landing, workspace, dashboard, Acoustic Twin, Evidence Coach, reports | Working |
 | Audio file validation, playback and waveform in the workspace | Working, in the browser only |
-| Workspace → backend: upload a recording, get real measurements, transcript and word timing | Working (`POST /api/analyze`) |
+| Workspace → backend: upload a recording and an optional reference, get real measurements, transcript, word timing and findings | Working (`POST /api/analyze`) |
 | Dashboard and Acoustic Twin for your recording | Working with real backend results; switchable to the demo fixture |
-| Findings, baseline comparison charts, coaching text and report content | **Demo fixture** (`frontend/src/fixtures/demoAnalysis.ts`), not computed from audio. Evidence Coach and Reports are demo-only |
+| Demo dashboard view, coaching text and report content | **Demo fixture** (`frontend/src/fixtures/demoAnalysis.ts`), not computed from audio. Evidence Coach and Reports are demo-only |
 | Contrastive demonstration dataset: 3 real recordings, 72 transformed variants, schema, validator, dataset card | Built and validated (see [Dataset](#dataset)) |
-| Flaw detection, severity and coaching for real recordings | Not implemented. The comparison reports differences; nothing decides which are flaws |
+| Articulation or clarity findings | Deliberately not supported: no measurement was found that would not penalise accent, voice or microphone |
+| Coaching and reports for real recordings | Not implemented; Evidence Coach and Reports remain demo-only |
 | Dataset publication | Not published; export and upload guide in `data/HOSTING.md` |
 | Free-form coach questions, language model, Supabase, hosting | Not implemented or connected |
 
@@ -32,6 +34,7 @@ backend/    Python + FastAPI
   app/audio/    acoustic feature extraction
   app/speech/   transcription and word alignment
   app/comparison/ reference-versus-participant differences
+  app/detection/  signal quality, alignment status and rule-based findings
   app/dataset/  dataset schema, transforms, build, validation, review and export
 data/       contrastive dataset: sources, examples, manifest, schema, dataset card
 docs/       Project specification
@@ -84,6 +87,7 @@ All optional. Copy `backend/.env.example` to `backend/.env` to change them. `bac
 | `PAUSE_SILENCE_BELOW_SPEECH_DB` | `25` | In quiet recordings, how far below the speech level counts as silence |
 | `PAUSE_NOISE_MARGIN_DB` | `3` | In noisy recordings, how close to the noise floor counts as silence |
 | `PAUSE_MIN_SEC` | `0.25` | Shortest silence reported as a pause |
+| `PITCH_MIN_HZ`, `PITCH_MAX_HZ` | `50`, `600` | Widest pitch range the tracker may search |
 | `WHISPER_MODEL` | `base` | faster-whisper model name or Hugging Face repository |
 | `WHISPER_DEVICE` | `cpu` | `cpu` or `cuda` |
 | `WHISPER_COMPUTE_TYPE` | `int8` | For example `int8`, `float32` |
@@ -118,12 +122,12 @@ Run the backend and the frontend in two separate terminals. The frontend footer 
 
 ### Using it
 
-1. Open the **Workspace**, choose a WAV, MP3, OGG or FLAC file, and optionally paste the text you were delivering.
+1. Open the **Workspace**, choose a WAV, MP3, OGG or FLAC file, and optionally paste the text you were delivering and add a reference recording of the same text.
 2. Press **Run analysis**. The file goes to `POST /api/analyze` on your backend.
-3. The result shows which steps completed, the recognised text and a time for each word. **Open the dashboard** for the waveform, playback (select a word to play from it), measured pitch, energy and spectral contours, detected pauses, and each metric's method and limitations.
+3. The result shows which steps completed, the recognised text, a time for each word and how many findings there are. **Open the dashboard** for the findings with their intervals and evidence, the rules that were checked or withheld, the waveform, playback (select a word or a finding to play from it), measured contours, and each metric's method and limitations.
 4. The **Acoustic Twin** shows the same recording's measured energy and pitch in 3D (or 2D).
 
-Real recordings have no findings, severities or coaching yet, because flaw detection and baseline comparison are not implemented. The app says so rather than showing demo findings as yours.
+Findings for your recording come only from the rules described under [Findings](#findings-apianalyze). There is no coaching or report for real recordings yet; those pages show the demo fixture and say so.
 
 ## API
 
@@ -135,14 +139,14 @@ All routes are under `/api`. Upload routes take a multipart form with `file` (WA
 | `POST /api/features` | `file`, optional `transcript` | Acoustic measurements |
 | `POST /api/transcribe` | `file`, optional `language` | Text, segments and word timestamps |
 | `POST /api/align` | `file`, optional `transcript`, optional `language` | Start and end time for each transcript word |
-| `POST /api/analyze` | `file`, optional `transcript`, optional `language` | Features, transcription and alignment together |
+| `POST /api/analyze` | `file`, optional `reference`, `transcript`, `reference_transcript`, `language` | The main route: measurements, transcription, alignment, signal quality and findings |
 | `POST /api/compare` | `reference`, `participant`, optional `transcript`, optional `language` | Measured differences between two recordings of the same text |
 
 ```powershell
 curl.exe -F "file=@talk.wav" -F "transcript=Good morning everyone" http://127.0.0.1:8000/api/analyze
 ```
 
-Errors always have the shape `{"detail": {"code": "...", "message": "..."}}`. Common codes: `empty_upload`, `unsupported_audio`, `undecodable_audio`, `audio_too_short`, `audio_too_long`, `upload_too_large`, `invalid_request`, `missing_dependency`, `model_download_failed`, `model_load_failed`, `hf_auth_required`, `hf_auth_rejected`, `transcription_failed`, `empty_transcript`, `no_word_timestamps`.
+Errors always have the shape `{"detail": {"code": "...", "message": "..."}}` and never contain file paths, credentials or stack traces. Common codes: `empty_upload`, `unsupported_audio`, `undecodable_audio`, `audio_too_short`, `audio_too_long`, `sample_rate_too_low`, `too_many_channels`, `upload_too_large`, `invalid_request`, `processing_failed`, `missing_dependency`, `model_download_failed`, `model_load_failed`, `hf_auth_required`, `hf_auth_rejected`, `transcription_failed`, `empty_transcript`, `no_word_timestamps`.
 
 ### Acoustic features (`/api/features`)
 
@@ -179,9 +183,9 @@ Words the recogniser heard that are not in the transcript are listed in `unmatch
 
 **Method and limits.** The recording is transcribed with word timestamps, then transcript words are matched in order to recognised words. This is not phoneme-level acoustic forced alignment: a word the recogniser misses gets no time, different spellings such as "3" and "three" do not match, and timing is accurate to roughly a tenth of a second.
 
-### Comparison (`/api/compare`)
+### Raw comparison (`/api/compare`)
 
-Upload a `reference` and a `participant` recording of the same text. Both are aligned to the supplied transcript, or to the text recognised in the reference if none is sent. The response contains:
+The measured differences on their own, without rules. `/api/analyze` with a `reference` returns these too. Upload a `reference` and a `participant` recording of the same text. Both are aligned to the supplied transcript, or to the text recognised in the reference if none is sent. The response contains:
 
 - **Global differences:** duration, pause count and total, pitch range and interquartile range in semitones, and speaking-rate estimates. Each says whether it is `measured` or `estimated` and whether the two values are fairly `comparable`. Median pitch in Hz is shown but marked not comparable, and loudness is left out, because both depend on the speaker or the microphone rather than the delivery.
 - **Timing differences:** gaps between consecutive words that are at least 0.25 s longer or shorter than in the reference, with the interval in each recording and the evidence. Only gaps between words recognised at the same position in both recordings are measured.
@@ -190,9 +194,57 @@ These are **differences, not flaws**. Nothing is labelled a flaw, given a severi
 
 **Measured accuracy.** `python -m app.comparison.evaluate` checks the comparison against the demonstration dataset, where pauses were inserted at known times. With the `base` transcription model on the development machine: 14 of 21 inserted pauses were reported as a longer gap, 0 longer gaps matched no inserted pause, 3 shorter gaps were reported although none was made shorter, and 6 timing differences were reported across 24 control samples whose timing is identical to the reference. Pauses are missed mainly because the recogniser stretches a word across the silence instead of leaving a gap. This is 3 speakers and transformed audio, so it indicates behaviour, not real-world accuracy.
 
-### Combined analysis (`/api/analyze`)
+### Findings (`/api/analyze`)
 
-Runs all three. Acoustic features are always returned for valid audio. If transcription or alignment cannot run, that part is `null` and `components` gives its `status`, `code` and `message`, so a missing model never blocks the acoustic measurements.
+Send the participant recording as `file`. Optionally add a `reference` recording of the same text, a `transcript`, and a `reference_transcript`. Invalid uploads return an error; everything else returns 200 with a `status`:
+
+| `status` | Meaning |
+| --- | --- |
+| `completed` | Rules ran and at least one finding crossed its threshold |
+| `completed_no_findings` | Rules ran and nothing crossed a threshold |
+| `partial` | Something could not run (unusable audio, no transcription, a reference that could not be used). `rules` and `limitations` say what and why |
+
+**How recordings are compared.** Both are aligned to one shared transcript: a supplied one, or the text recognised in the reference. A word is compared only if it was recognised at that position in both recordings, so every measurement covers the same spoken words; raw timestamps are never compared across recordings. The comparison is withheld, with the reason in `alignment_status`, when the two transcripts differ, when fewer than 60% of the words are recognised in either recording, or when fewer than 10 words line up. `transcripts` records whether each text was `user_provided` or `machine_generated`; the API never claims human verification.
+
+**Rules.** Each has an ID, its thresholds in the response, and one of four outcomes in `rules`: `triggered`, `not_triggered`, `withheld` (with the reason) or `not_supported`.
+
+| Category | With a reference | Without a reference | Severity |
+| --- | --- | --- | --- |
+| Rushed / slow delivery | Speaking time for the same words, pauses removed, differs by more than 10% | Recognised words per minute above 200 or below 100 (English only, at least 20 words over 8 s) | With a reference only: minor, moderate from 20%, major from 35% |
+| Excessive pause | A measured pause at least 0.4 s longer than the reference's silence at the same words | A measured pause of 1.5 s or more | With a reference only: minor, moderate from 0.8 s, major from 1.5 s extra |
+| Uneven pacing | Pace per run of about 5 words, relative to the speaker's overall pace, varies by 1.5x or more; stretches off by 25% are reported | Withheld | None |
+| Filler words | Recognised hesitation sounds (um, uh, er, erm, hmm, mm) at their word times | Same | None |
+| Pitch variation ("possibly narrow") | Pitch range over voiced frames, in semitones around each speaker's own median, at most 70% of the reference's | Range below 4 semitones | None |
+| Articulation / clarity | Not supported | Not supported | — |
+
+Every finding carries a stable `id`, the interval in the participant audio, the measured `evidence` with units and reference values, the `comparison_method`, the `rule` and thresholds, an `evidence_quality`, an `explanation` and its `limitations`.
+
+**Severity** is a band of the measured size of a difference, given only by the two reference-based rules above. It is not a rating of how the delivery sounds. All thresholds are in `DetectionSettings` (`backend/app/detection/schemas.py`) and echoed in the response as `settings`.
+
+**Safeguards.**
+
+- Silent, steady-noise or very short recordings are reported as not usable and no rule runs.
+- Detected clipping, low-confidence pause detection in noise, and unreliable pitch tracking lower `evidence_quality` to `low`, remove severity, and word the finding as "possible".
+- Pitch rules are withheld, not guessed, when pitch tracking is unreliable. Tracking is checked directly: if the result changes when the tracker's lower limit is nudged, which happens with creaky or very low voices, the recording is flagged. Low voices that track stably are measured normally.
+- Pitch is only ever compared in semitones relative to the speaker, so a naturally high or low voice changes nothing. Loudness, spectral and MFCC features are not compared, because they depend on the microphone and the voice.
+- Findings are measured differences, not proof of a problem, a diagnosis, or a statement about cause.
+
+**Measured behaviour on the demonstration dataset.** `python -m app.detection.evaluate` analyses every dataset sample against its own reference with the real `base` transcription model. On the development machine:
+
+| Labelled flaw in the dataset | Mild | Moderate | Severe | Near-reference |
+| --- | --- | --- | --- | --- |
+| Excessive pauses | 3 of 3 | 3 of 3 | 3 of 3 | 0 of 3 (inserted pause is below the threshold) |
+| Rushed delivery | 3 of 3 | 3 of 3 | 3 of 3 | 0 of 3 |
+| Slow delivery | 3 of 3 | 3 of 3 | 3 of 3 | 0 of 3 |
+| Uneven pacing | 0 of 3 | 3 of 3 | 3 of 3 | 0 of 3 |
+| Pitch monotony | 2 of 3 | 1 of 3 | 2 of 3 | 0 of 3 |
+| Unclear articulation (no rule) | 0 of 3 | 0 of 3 | 0 of 3 | 0 of 3 |
+
+In total the labelled flaw was reported for 38 of 45 mild-to-severe samples, and nothing was reported for the 3 references or the 12 unclear-articulation samples. Severity bands followed the dataset's tiers for pace (minor, moderate, major) and pauses. Five findings were of a category other than the label: four "slow delivery" on uneven-pacing samples, whose transform does make them longer overall, and one pause on a slowed sample. Pitch findings were withheld for 26 samples because tracking was flagged unreliable, almost all from the low-voiced speaker.
+
+Read these numbers with care. The uneven-pacing and pitch thresholds were chosen using this same dataset, so their results here are optimistic. The dataset is 3 speakers of transformed audio, so this shows how the rules behave, not how accurate they are on natural speech.
+
+Acoustic features are always returned for valid audio. If transcription or alignment cannot run, that part is `null`, `components` gives its `status`, `code` and `message`, and rules that need words are withheld, so a missing model never blocks the acoustic measurements.
 
 ## Dataset
 

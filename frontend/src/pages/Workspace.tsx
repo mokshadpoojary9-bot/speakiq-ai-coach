@@ -82,10 +82,13 @@ function RunError({ error, onRetry }: { error: ApiError; onRetry: () => void }) 
 
 export default function Workspace() {
   const fileInputId = useId()
+  const referenceInputId = useId()
   const transcriptId = useId()
   const { setSession } = useAnalysisSession()
   const [file, setFile] = useState<File | null>(null)
   const [fileError, setFileError] = useState<string | null>(null)
+  const [reference, setReference] = useState<File | null>(null)
+  const [referenceError, setReferenceError] = useState<string | null>(null)
   const [transcript, setTranscript] = useState('')
   const [run, setRun] = useState<RunState>({ kind: 'idle' })
   const controller = useRef<AbortController | null>(null)
@@ -105,13 +108,21 @@ export default function Workspace() {
     setRun({ kind: 'idle' })
   }
 
+  function handleReference(event: ChangeEvent<HTMLInputElement>) {
+    const picked = event.target.files?.[0] ?? null
+    const error = picked ? validateAudioFile(picked) : null
+    setReferenceError(error)
+    setReference(error ? null : picked)
+    setRun({ kind: 'idle' })
+  }
+
   async function analyse() {
     if (!file || running) return
     const current = new AbortController()
     controller.current = current
     setRun({ kind: 'running', startedAt: Date.now() })
     try {
-      const result = await analyzeRecording(file, transcript, current.signal)
+      const result = await analyzeRecording(file, transcript, current.signal, reference)
       setSession({ result, file, analysedAt: new Date() })
       setRun({ kind: 'done', result })
     } catch (error) {
@@ -171,6 +182,36 @@ export default function Workspace() {
                 title="No audio selected yet"
                 description="Pick a file to hear it back and see its waveform here."
               />
+            )}
+          </div>
+
+          <div className="mt-6 border-t border-line pt-5">
+            <label htmlFor={referenceInputId} className="block text-sm font-medium">
+              Reference recording <span className="font-normal text-muted">(optional)</span>
+            </label>
+            <p className="mt-1 text-sm text-muted">
+              A recording of the same text to compare against. With one, pace, pauses and pitch variation are compared
+              word for word. It is only what you are compared with; nothing rates it as good.
+            </p>
+            <input
+              id={referenceInputId}
+              type="file"
+              accept={AUDIO_EXTENSIONS.join(',')}
+              onChange={handleReference}
+              disabled={running}
+              className="mt-2 block w-full cursor-pointer rounded-lg border border-line bg-ink-900 text-sm text-muted file:mr-4 file:cursor-pointer file:border-0 file:bg-ink-700 file:px-4 file:py-2.5 file:text-sm file:font-medium file:text-fg disabled:cursor-not-allowed disabled:opacity-60"
+            />
+            {referenceError ? (
+              <div className="mt-3">
+                <ErrorState title="That reference file can’t be used" message={referenceError} />
+              </div>
+            ) : (
+              reference && (
+                <p className="mt-2 text-sm">
+                  <span className="font-medium">{reference.name}</span>
+                  <span className="ml-2 font-mono text-xs text-muted">{formatBytes(reference.size)}</span>
+                </p>
+              )
             )}
           </div>
         </Card>
@@ -256,9 +297,30 @@ export default function Workspace() {
               <div className="mt-5">
                 <TranscriptPanel result={run.result} />
               </div>
-              <p className="mt-5 text-sm text-muted">
-                These are measurements only. Flaw detection, baseline comparison and coaching for real recordings are
-                not implemented yet.
+              <p role="status" className="mt-5 rounded-lg border border-line bg-ink-900 px-4 py-3 text-sm">
+                {run.result.status === 'partial' ? (
+                  <>
+                    <span className="font-semibold text-warn">Partial analysis.</span> Some checks could not run for this
+                    recording; the dashboard lists which and why.
+                  </>
+                ) : run.result.findings.length === 0 ? (
+                  <>
+                    <span className="font-semibold text-accent">No supported findings.</span> Every rule that could run
+                    was checked and nothing crossed its threshold.
+                  </>
+                ) : (
+                  <>
+                    <span className="font-semibold text-accent">
+                      {run.result.findings.length} {run.result.findings.length === 1 ? 'finding' : 'findings'}.
+                    </span>{' '}
+                    Open the dashboard to see each one with its interval and evidence.
+                  </>
+                )}{' '}
+                {run.result.alignment_status.status === 'aligned'
+                  ? `Compared with ${run.result.reference?.filename ?? 'the reference'}.`
+                  : run.result.alignment_status.status === 'unavailable'
+                    ? `The reference was not used: ${run.result.alignment_status.reason}`
+                    : 'No reference recording was used.'}
               </p>
             </Card>
           )}

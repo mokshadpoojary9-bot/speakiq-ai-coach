@@ -52,13 +52,78 @@ describe('Dashboard with a real analysis', () => {
     expect(screen.getByText('152 Hz')).toBeInTheDocument()
     expect(screen.getByText('3.3 syll/s')).toBeInTheDocument()
     expect(screen.getByText('estimate, not a count')).toBeInTheDocument()
-    expect(screen.getByRole('img', { name: /Measured waveform of talk.wav, 0:04.8 long, with 1 detected silences shaded/ })).toBeInTheDocument()
+    expect(screen.getByRole('img', { name: /Measured waveform of talk.wav, 0:04.8 long, with 1 finding intervals shaded/ })).toBeInTheDocument()
     expect(screen.getByText('good morning everyone thanks for coming')).toBeInTheDocument()
+    // Nothing from the demo fixture's findings is shown.
+    expect(screen.queryByText('Speech rate rises well above the baseline for the same sentence.')).not.toBeInTheDocument()
+  })
 
+  it('shows each real finding with its interval, evidence, severity basis and limitations', () => {
+    renderWith(<Dashboard />, sampleAnalysis())
     const findings = screen.getByRole('region', { name: 'Findings' })
-    expect(within(findings).getByText('No findings for this recording')).toBeInTheDocument()
-    expect(within(findings).getByText(/Flaw detection and baseline comparison are not implemented yet/)).toBeInTheDocument()
-    expect(screen.queryByText('Rushed delivery')).not.toBeInTheDocument()
+
+    expect(within(findings).getByRole('status')).toHaveTextContent('Analysis complete, with findings')
+    expect(within(findings).getByText(/Compared with reference.wav over 5 of 6 words recognised in both recordings \(your transcript\)/)).toBeInTheDocument()
+    const list = within(findings).getByRole('list', { name: 'Findings' })
+    const [finding] = within(list).getAllByRole('listitem')
+    expect(finding).toHaveTextContent('Longer pause than the reference')
+    expect(finding).toHaveTextContent('0:02.0 – 0:02.8 · reference 0:01.0 – 0:01.9')
+    expect(finding).toHaveTextContent('minor difference')
+    expect(finding).toHaveTextContent('high evidence quality')
+    const row = within(finding).getByRole('row', { name: /silence between the same words/ })
+    expect(row).toHaveTextContent('silence between the same words' + '0.8' + '0.1' + 's')
+    expect(finding).toHaveTextContent('pause_excess_sec = 0.4')
+    expect(finding).toHaveTextContent('Severity: Extra silence beyond the reference')
+    expect(finding).toHaveTextContent('A longer pause can be deliberate.')
+  })
+
+  it('lists every rule with whether it found something, found nothing, or could not check', () => {
+    renderWith(<Dashboard />, sampleAnalysis())
+
+    const rules = within(screen.getByRole('list', { name: 'Rules checked' })).getAllByRole('listitem')
+    expect(rules).toHaveLength(7)
+    expect(rules[0]).toHaveTextContent('Rushed delivery · Checked, nothing found')
+    expect(rules[2]).toHaveTextContent('Pauses · Found (1)')
+    expect(rules[3]).toHaveTextContent('Uneven pacing · Could not check' + 'Needs at least 3 runs')
+    expect(rules[4]).toHaveTextContent('Filler words · Checked, nothing found' + 'None were recognised.')
+    expect(rules[6]).toHaveTextContent('Articulation · Not supported')
+  })
+
+  it('distinguishes a clean result with no supported findings from a partial one', () => {
+    const clean = sampleAnalysis()
+    clean.status = 'completed_no_findings'
+    clean.findings = []
+    const view = renderWith(<Dashboard />, clean)
+    expect(screen.getByRole('region', { name: 'Findings' })).toHaveTextContent('Analysis complete: no supported findings')
+    expect(screen.getByText('No supported findings')).toBeInTheDocument()
+    expect(screen.getByText(/This does not rate the delivery as good/)).toBeInTheDocument()
+    expect(screen.getByRole('img', { name: /with 1 detected silences shaded/ })).toBeInTheDocument()
+    view.unmount()
+
+    const partial = sampleAnalysis()
+    partial.status = 'partial'
+    partial.findings = []
+    partial.signal_quality = {
+      usable: false,
+      issues: [{ code: 'no_signal', level: 'blocking', message: 'The recording is silent or almost silent.', affects: [] }],
+    }
+    partial.alignment_status = { ...partial.alignment_status, status: 'unavailable', reason: 'The reference recording cannot be used.' }
+    renderWith(<Dashboard />, partial)
+    const findings = screen.getByRole('region', { name: 'Findings' })
+    expect(findings).toHaveTextContent('Partial analysis')
+    expect(findings).toHaveTextContent('No findings could be established')
+    expect(findings).toHaveTextContent('does not mean the delivery was checked and found fine')
+    expect(within(findings).getByRole('list', { name: 'Signal quality' })).toHaveTextContent('Recording not usable. The recording is silent or almost silent.')
+    expect(findings).toHaveTextContent('The reference recording was not used. The reference recording cannot be used.')
+  })
+
+  it('says when no reference recording was supplied', () => {
+    const result = sampleAnalysis()
+    result.reference = null
+    result.alignment_status = { ...result.alignment_status, status: 'no_reference' }
+    renderWith(<Dashboard />, result)
+
+    expect(screen.getByText(/No reference recording was supplied, so only the rules that need no reference were run/)).toBeInTheDocument()
   })
 
   it('lists each metric with the status and method the backend reported', () => {
@@ -68,7 +133,7 @@ describe('Dashboard with a real analysis', () => {
     expect(within(methods).getByText('Speaking rate').closest('summary')).toHaveTextContent('Estimated')
     expect(within(methods).getByText('Pauses').closest('summary')).toHaveTextContent('Measured')
     expect(within(methods).getByText('Energy-peak syllable nuclei.')).toBeInTheDocument()
-    expect(within(methods).getByText(/No comparison with a baseline delivery/)).toBeInTheDocument()
+    expect(within(methods).getByText('These are acoustic measurements of one recording.')).toBeInTheDocument()
   })
 
   it('shows dashes and an explanation, not invented values, when pitch is unavailable', () => {
@@ -154,6 +219,12 @@ describe('Dashboard with a real analysis', () => {
 
     expect(player.setTime).toHaveBeenCalledWith(2.9)
     expect(player.play).toHaveBeenCalled()
+
+    // A finding's interval, and its band on the waveform, also start playback there.
+    await userEvent.click(screen.getByRole('button', { name: 'Play from 0:02.0 – 0:02.8' }))
+    expect(player.setTime).toHaveBeenLastCalledWith(2)
+    await userEvent.click(screen.getByRole('button', { name: 'Longer pause than the reference, 0:02.0 – 0:02.8' }))
+    expect(player.setTime).toHaveBeenCalledTimes(3)
     // A word with no time is not a button.
     expect(screen.queryByRole('button', { name: /^you,/ })).not.toBeInTheDocument()
   })
@@ -190,14 +261,14 @@ describe('Acoustic Twin with a real analysis', () => {
     renderWith(<Twin />, sampleAnalysis())
 
     expect(screen.getByText('Real analysis · talk.wav')).toBeInTheDocument()
-    expect(screen.getByRole('img', { name: /2D Acoustic Twin.*Measured from talk.wav.*no baseline row/ })).toBeInTheDocument()
+    expect(screen.getByRole('img', { name: /2D Acoustic Twin.*Measured from talk.wav.*Only this recording is drawn/ })).toBeInTheDocument()
     const table = screen.getByRole('table', { hidden: true })
     expect(within(table).getAllByRole('row', { hidden: true })).toHaveLength(48 + 1)
     expect(within(table).queryByRole('columnheader', { name: /Baseline/, hidden: true })).not.toBeInTheDocument()
     expect(within(table).getByRole('columnheader', { name: 'Energy (dBFS)', hidden: true })).toBeInTheDocument()
     expect(screen.getByText('Detected pause')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /Pause.*0:02.0 – 0:02.8/ })).toBeInTheDocument()
-    expect(screen.getByText(/baseline comparison and flaw detection are not implemented yet/)).toBeInTheDocument()
+    expect(screen.getByText(/Findings from a comparison with a reference are on the dashboard, not here/)).toBeInTheDocument()
   })
 
   it('says there is nothing to draw when the backend returned no energy contour', () => {

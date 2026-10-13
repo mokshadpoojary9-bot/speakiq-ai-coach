@@ -77,6 +77,8 @@ test('workspace rejects a non-audio file', async ({ page }) => {
 
 test('primary navigation is reachable by keyboard with a visible skip link', async ({ page }) => {
   await page.goto('/')
+  // Wait until the page has rendered; pressing Tab on a still-empty page focuses nothing.
+  await expect(page.getByRole('link', { name: 'Skip to main content' })).toBeAttached()
   await page.keyboard.press('Tab')
 
   await expect(page.getByRole('link', { name: 'Skip to main content' })).toBeFocused()
@@ -105,7 +107,8 @@ test('uploads a recording, shows the backend result, and carries it to the dashb
   await result.getByRole('link', { name: 'Open the dashboard' }).click()
   await expect(page.getByText('Real analysis · talk.wav')).toBeVisible()
   await expect(page.getByText('Demo data — not a real analysis')).toHaveCount(0)
-  await expect(page.getByText('No findings for this recording')).toBeVisible()
+  await expect(page.getByText('Analysis complete, with findings')).toBeVisible()
+  await expect(page.getByRole('list', { name: 'Findings' }).getByRole('heading', { name: 'Longer pause than the reference' })).toBeVisible()
 
   await page.getByRole('navigation', { name: 'Primary' }).getByRole('link', { name: 'Acoustic Twin' }).click()
   await expect(page.getByText('Real analysis · talk.wav')).toBeVisible()

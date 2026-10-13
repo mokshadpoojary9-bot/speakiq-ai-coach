@@ -5,6 +5,7 @@ from pathlib import Path
 from dotenv import load_dotenv
 
 from .audio.features import PauseSettings
+from .audio.pitch import PitchSettings
 
 BACKEND_ROOT = Path(__file__).resolve().parents[1]
 
@@ -39,6 +40,10 @@ class Settings:
             noise_margin_db=float(_env("PAUSE_NOISE_MARGIN_DB", "3")),
             min_pause_sec=float(_env("PAUSE_MIN_SEC", "0.25")),
         )
+    )
+
+    pitch_settings: PitchSettings = field(
+        default_factory=lambda: PitchSettings(min_hz=float(_env("PITCH_MIN_HZ", "50")), max_hz=float(_env("PITCH_MAX_HZ", "600")))
     )
 
     whisper_model: str = field(default_factory=lambda: _env("WHISPER_MODEL", "base"))

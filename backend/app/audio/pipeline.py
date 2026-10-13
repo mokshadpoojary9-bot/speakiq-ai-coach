@@ -5,17 +5,20 @@ import numpy as np
 from . import features, timing
 from .features import DEFAULT_PAUSE_SETTINGS, PauseSettings
 from .loading import LoadedAudio
-from .pitch import pitch, track_pitch
+from .pitch import DEFAULT_PITCH_SETTINGS, PitchSettings, pitch, track_pitch
 from .schemas import AudioFeatures, AudioInfo, FrameConfig
 
 
 def extract_features(
-    audio: LoadedAudio, transcript: str | None = None, pause_settings: PauseSettings = DEFAULT_PAUSE_SETTINGS
+    audio: LoadedAudio,
+    transcript: str | None = None,
+    pause_settings: PauseSettings = DEFAULT_PAUSE_SETTINGS,
+    pitch_settings: PitchSettings = DEFAULT_PITCH_SETTINGS,
 ) -> AudioFeatures:
     samples, sample_rate, duration = audio.samples, audio.sample_rate, audio.duration_sec
 
     frames = features.compute_frames(samples, sample_rate, pause_settings)
-    track = track_pitch(samples, sample_rate)
+    track = track_pitch(samples, sample_rate, pitch_settings)
     pause_result = timing.pauses(frames, duration, pause_settings)
 
     return AudioFeatures(
@@ -43,7 +46,7 @@ def extract_features(
         speaking_rate=timing.speaking_rate(frames, track, pause_result, duration),
         transcript_rate=timing.transcript_rate(transcript, duration),
         limitations=[
-            "These are acoustic measurements of one recording. No comparison with a baseline and no flaw detection is performed yet.",
+            "These are acoustic measurements of one recording on its own. Comparison with a reference and findings are reported separately by the analysis route.",
             "Multi-channel audio is averaged to mono and resampled before analysis.",
             "Acoustic features are not tied to individual words here; word timing comes from the separate transcription and alignment steps.",
         ],
