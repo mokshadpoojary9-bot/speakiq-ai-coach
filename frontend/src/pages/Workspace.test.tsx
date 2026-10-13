@@ -111,6 +111,27 @@ describe('Workspace analysis', () => {
     expect(screen.getByTestId('session')).toHaveTextContent('talk.wav')
   })
 
+  it('sends the user’s statement that they checked the transcript, and only when there is a transcript', async () => {
+    vi.mocked(fetch).mockResolvedValue(jsonResponse(sampleAnalysis()))
+    renderWorkspace()
+    chooseFile()
+    const checkbox = screen.getByRole('checkbox', { name: /I have checked this transcript against the recording/ })
+    expect(checkbox).toBeDisabled() // nothing to vouch for yet
+    expect(screen.getByText(/The app cannot verify it and will not call the transcript verified/)).toBeInTheDocument()
+
+    await run()
+    await screen.findByRole('region', { name: 'Analysis complete' })
+    expect((vi.mocked(fetch).mock.calls[0][1]?.body as FormData).has('transcript_reviewed')).toBe(false)
+
+    await userEvent.type(screen.getByLabelText('The text you were delivering'), 'Good morning everyone')
+    await userEvent.click(checkbox)
+    await run()
+    await screen.findByRole('region', { name: 'Analysis complete' })
+    const body = vi.mocked(fetch).mock.calls[1][1]?.body as FormData
+    expect(body.get('transcript')).toBe('Good morning everyone')
+    expect(body.get('transcript_reviewed')).toBe('true')
+  })
+
   it('sends an optional reference recording with the request', async () => {
     vi.mocked(fetch).mockResolvedValue(jsonResponse(sampleAnalysis()))
     renderWorkspace()

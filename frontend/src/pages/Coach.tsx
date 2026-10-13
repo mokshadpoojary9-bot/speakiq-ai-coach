@@ -1,8 +1,9 @@
 import { useId, useState } from 'react'
 import { AnalysisGate } from '../components/AnalysisGate'
 import { FindingDetail, FindingList } from '../components/Findings'
-import { DemoOnlyNotice } from '../components/SourceSwitch'
-import { Badge, Card, DemoBadge, EmptyState, PageHeader } from '../components/ui'
+import { RealCoach } from '../components/RealCoach'
+import { SourceSwitch, useSource } from '../components/SourceSwitch'
+import { Badge, Card, DemoBadge, EmptyState, LiveBadge, PageHeader } from '../components/ui'
 import type { AnalysisResult } from '../types'
 
 function CoachContent({ analysis }: { analysis: AnalysisResult }) {
@@ -83,6 +84,9 @@ function CoachContent({ analysis }: { analysis: AnalysisResult }) {
 }
 
 export default function Coach() {
+  const { source, session, setSource } = useSource()
+  const live = source === 'live' && session !== null
+
   return (
     <>
       <PageHeader
@@ -90,10 +94,10 @@ export default function Coach() {
         title="Advice you can trace back"
         description="Each suggestion names the finding that triggered it and shows the measurements behind it."
       >
-        <DemoBadge />
+        {live ? <LiveBadge filename={session.result.features.audio.filename} /> : <DemoBadge />}
       </PageHeader>
-      <DemoOnlyNotice feature="coaching" />
-      <AnalysisGate>{(analysis) => <CoachContent analysis={analysis} />}</AnalysisGate>
+      <SourceSwitch source={source} hasSession={session !== null} onChange={setSource} />
+      {live ? <RealCoach session={session} /> : <AnalysisGate>{(analysis) => <CoachContent analysis={analysis} />}</AnalysisGate>}
     </>
   )
 }

@@ -90,6 +90,7 @@ export default function Workspace() {
   const [reference, setReference] = useState<File | null>(null)
   const [referenceError, setReferenceError] = useState<string | null>(null)
   const [transcript, setTranscript] = useState('')
+  const [reviewed, setReviewed] = useState(false)
   const [run, setRun] = useState<RunState>({ kind: 'idle' })
   const controller = useRef<AbortController | null>(null)
 
@@ -122,7 +123,7 @@ export default function Workspace() {
     controller.current = current
     setRun({ kind: 'running', startedAt: Date.now() })
     try {
-      const result = await analyzeRecording(file, transcript, current.signal, reference)
+      const result = await analyzeRecording(file, transcript, current.signal, reference, reviewed)
       setSession({ result, file, analysedAt: new Date() })
       setRun({ kind: 'done', result })
     } catch (error) {
@@ -240,6 +241,21 @@ export default function Workspace() {
             With a transcript, each of your words is matched to a time in the recording. Without one, the recognised
             words are timed instead.
           </p>
+          <label className="mt-4 flex items-start gap-2 text-sm">
+            <input
+              type="checkbox"
+              checked={reviewed}
+              disabled={running || words === 0}
+              onChange={(event) => setReviewed(event.target.checked)}
+              className="mt-0.5 h-4 w-4 accent-[#3ecf8e]"
+            />
+            <span>
+              I have checked this transcript against the recording
+              <span className="block text-xs text-muted">
+                Recorded as your statement. The app cannot verify it and will not call the transcript verified.
+              </span>
+            </span>
+          </label>
         </Card>
 
         <div className="flex flex-col gap-4 lg:col-span-2">

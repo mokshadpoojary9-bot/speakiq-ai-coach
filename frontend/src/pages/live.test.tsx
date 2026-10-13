@@ -81,12 +81,30 @@ describe('Dashboard with a real analysis', () => {
     renderWith(<Dashboard />, sampleAnalysis())
 
     const rules = within(screen.getByRole('list', { name: 'Rules checked' })).getAllByRole('listitem')
-    expect(rules).toHaveLength(7)
+    expect(rules).toHaveLength(8)
     expect(rules[0]).toHaveTextContent('Rushed delivery · Checked, nothing found')
     expect(rules[2]).toHaveTextContent('Pauses · Found (1)')
-    expect(rules[3]).toHaveTextContent('Uneven pacing · Could not check' + 'Needs at least 3 runs')
-    expect(rules[4]).toHaveTextContent('Filler words · Checked, nothing found' + 'None were recognised.')
-    expect(rules[6]).toHaveTextContent('Articulation · Not supported')
+    expect(rules[3]).toHaveTextContent('Pause placement · Checked, nothing found')
+    expect(rules[4]).toHaveTextContent('Uneven pacing · Could not check' + 'Needs at least 3 runs')
+    expect(rules[5]).toHaveTextContent('Filler words · Checked, nothing found' + 'None were recognised.')
+    expect(rules[7]).toHaveTextContent('Articulation · Not supported')
+  })
+
+  it('says which words were left out of the comparison and where the transcript came from', () => {
+    renderWith(<Dashboard />, sampleAnalysis())
+
+    expect(screen.getByText(/Left out of the comparison: 1 not recognised in participant\./)).toBeInTheDocument()
+    expect(screen.getByText('Transcript used: Provided by you; not reviewed.')).toBeInTheDocument()
+  })
+
+  it('never calls a transcript verified: an attested one is described as the user’s statement', () => {
+    const result = sampleAnalysis()
+    result.transcripts.shared_for_comparison = { ...result.transcripts.shared_for_comparison!, review_status: 'user_attested' }
+    renderWith(<Dashboard />, result)
+
+    expect(
+      screen.getByText('Transcript used: Provided by you; you stated you checked it against the recording (not independently verified).'),
+    ).toBeInTheDocument()
   })
 
   it('distinguishes a clean result with no supported findings from a partial one', () => {
@@ -293,21 +311,113 @@ describe('Acoustic Twin with a real analysis', () => {
   })
 })
 
-describe('Pages with no real counterpart yet', () => {
-  it('warn that coaching and reports still show demo data when a recording has been analysed', () => {
-    const coach = renderWith(<Coach />, sampleAnalysis())
-    expect(screen.getByRole('note')).toHaveTextContent(/still shows demo data.*talk.wav.*coaching for real recordings is not implemented/)
-    expect(screen.getByText(/Demo data — not a real analysis/)).toBeInTheDocument()
-    coach.unmount()
+describe('Evidence Coach with a real analysis', () => {
+  it('shows the rule-based suggestions the backend built from the findings', () => {
+    renderWith(<Coach />, sampleAnalysis())
 
-    renderWith(<Reports />, sampleAnalysis())
-    expect(screen.getByRole('note')).toHaveTextContent(/report generation for real recordings is not implemented/)
+    expect(screen.getByText('Real analysis · talk.wav')).toBeInTheDocument()
+    expect(screen.queryByText(/Demo data — not a real analysis/)).not.toBeInTheDocument()
+    const [tip] = within(screen.getByRole('list', { name: 'Coaching suggestions' })).getAllByRole('article')
+    expect(within(tip).getByRole('heading', { level: 2 })).toHaveTextContent('Shorten the pauses at the marked points, unless you meant them.')
+    expect(tip).toHaveTextContent('Rule-based · no language model')
+    expect(tip).toHaveTextContent('Rehearse the phrase on either side of each marked pause as one unit')
+    expect(tip).toHaveTextContent('There are 0.80 s of silence after')
+    expect(within(tip).getByRole('list', { name: 'Findings behind this suggestion' })).toHaveTextContent('0:02.0 – 0:02.8')
+    expect(within(tip).queryByRole('note')).not.toBeInTheDocument()
+    // None of the demo fixture's advice appears.
+    expect(screen.queryByText('Slow down on the sentence that carries your main claim.')).not.toBeInTheDocument()
   })
 
-  it('show no such warning when nothing has been analysed', () => {
-    renderWith(<Coach />, null)
+  it('shows the caution when the evidence behind a suggestion is weak', () => {
+    const result = sampleAnalysis()
+    result.coaching![0].caution = 'The evidence behind this is weak for this recording.'
+    renderWith(<Coach />, result)
 
-    expect(screen.queryByRole('note')).not.toBeInTheDocument()
+    expect(screen.getByRole('note')).toHaveTextContent('The evidence behind this is weak for this recording.')
+  })
+
+  it('explains why there is no coaching when there are no findings or the analysis was partial', () => {
+    const clean = sampleAnalysis()
+    clean.status = 'completed_no_findings'
+    clean.findings = []
+    clean.coaching = []
+    const view = renderWith(<Coach />, clean)
+    expect(screen.getByText('No coaching for this recording')).toBeInTheDocument()
+    expect(screen.getByText(/That is not a rating of the delivery/)).toBeInTheDocument()
+    view.unmount()
+
+    const partial = sampleAnalysis()
+    partial.status = 'partial'
+    partial.findings = []
+    partial.coaching = []
+    renderWith(<Coach />, partial)
+    expect(screen.getByText('No coaching: the analysis was only partial')).toBeInTheDocument()
+  })
+
+  it('can switch to the labelled demo and shows it when nothing has been analysed', async () => {
+    const view = renderWith(<Coach />, sampleAnalysis())
+    await userEvent.click(screen.getByRole('button', { name: 'Demo fixture' }))
+    expect(screen.getByText(/Demo data — not a real analysis/)).toBeInTheDocument()
+    expect(await screen.findByText('Slow down on the sentence that carries your main claim.')).toBeInTheDocument()
+    view.unmount()
+
+    renderWith(<Coach />, null)
+    expect(screen.getByText(/Demo data — not a real analysis/)).toBeInTheDocument()
+    expect(screen.getByText(/No recording has been analysed in this session/)).toBeInTheDocument()
+  })
+})
+
+describe('Reports with a real analysis', () => {
+  it('reports the status, reference, transcript provenance, findings, suggestions and what was not checked', () => {
+    renderWith(<Reports />, sampleAnalysis())
+
+    const report = screen.getByRole('article', { name: 'Speech delivery report' })
+    expect(within(report).getByText('Real analysis · talk.wav')).toBeInTheDocument()
+    expect(within(report).getByText('Complete, with findings')).toBeInTheDocument()
+    expect(within(report).getByText('reference.wav, 5 of 6 words compared')).toBeInTheDocument()
+    expect(within(report).getByText('Provided by you; not reviewed')).toBeInTheDocument()
+    expect(within(report).getByText('No problems detected')).toBeInTheDocument()
+
+    const findings = within(report).getByRole('region', { name: 'Findings (1)' })
+    expect(findings).toHaveTextContent('1. Longer pause than the reference')
+    expect(findings).toHaveTextContent('0:02.0 – 0:02.8 · Pauses · minor difference · high evidence quality')
+    const suggestions = within(report).getByRole('region', { name: 'Suggestions (1)' })
+    expect(suggestions).toHaveTextContent('Shorten the pauses at the marked points, unless you meant them.')
+    expect(suggestions).toHaveTextContent('Rule-based wording; no language model was used.')
+    const notChecked = within(report).getByRole('region', { name: 'Not checked' })
+    expect(notChecked).toHaveTextContent('Uneven pacing: Needs at least 3 runs')
+    expect(notChecked).toHaveTextContent('Articulation: No defensible measurement is available.')
+    expect(within(report).queryByText(/Demo data — not a real analysis/)).not.toBeInTheDocument()
+  })
+
+  it('does not present an empty or partial result as a clean bill of health', () => {
+    const partial = sampleAnalysis()
+    partial.status = 'partial'
+    partial.findings = []
+    partial.coaching = []
+    partial.alignment_status = { ...partial.alignment_status, status: 'unavailable', reason: 'The two recordings were aligned to different transcripts.' }
+    partial.signal_quality = { usable: true, issues: [{ code: 'clipping_detected', level: 'warning', message: 'Clipping detected (412 flat-topped peaks).', affects: [] }] }
+    renderWith(<Reports />, partial)
+
+    const report = screen.getByRole('article', { name: 'Speech delivery report' })
+    expect(within(report).getByText('Partial')).toBeInTheDocument()
+    expect(within(report).getByText('Not used: The two recordings were aligned to different transcripts.')).toBeInTheDocument()
+    expect(within(report).getByText('Clipping detected (412 flat-topped peaks).')).toBeInTheDocument()
+    expect(within(report).getByText(/This is not a statement that the delivery was checked and found fine/)).toBeInTheDocument()
+    expect(within(report).getByText('None. Suggestions are only written from findings.')).toBeInTheDocument()
+  })
+
+  it('prints through the browser and falls back to the labelled demo when nothing has been analysed', async () => {
+    const print = vi.fn()
+    vi.stubGlobal('print', print)
+    const view = renderWith(<Reports />, sampleAnalysis())
+    await userEvent.click(screen.getByRole('button', { name: 'Print or save as PDF' }))
+    expect(print).toHaveBeenCalledOnce()
+    view.unmount()
+
+    renderWith(<Reports />, null)
+    const demo = await screen.findByRole('article', { name: 'Speech delivery report' })
+    expect(within(demo).getByText(/Demo data — not a real analysis/)).toBeInTheDocument()
   })
 })
 

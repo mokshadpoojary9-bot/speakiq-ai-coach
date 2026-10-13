@@ -10,6 +10,7 @@ from . import __version__
 from .audio import SUPPORTED_EXTENSIONS, AudioError, AudioFeatures, LoadedAudio, extract_features, load_audio
 from .comparison import ComparisonResult, DeliveryAnalysis, compare_deliveries
 from .config import Settings, get_settings
+from .detection.coaching import CoachingTip, build_coaching
 from .detection import AlignmentStatus, DetectionSettings, Finding, RuleReport, SignalQuality, run_detection
 from .speech import (
     Alignment,
@@ -84,18 +85,29 @@ class Components(BaseModel):
 
 
 class TranscriptInfo(BaseModel):
-    """Where a recording's transcript came from. The API has no evidence of human review, so it never reports any."""
+    """Where a transcript came from and what is known about its review.
 
-    # user_provided: sent with the request. machine_generated: recognised from the audio. none: no text available.
+    The API cannot check that anyone compared a transcript with the audio, so `human_verified` is always
+    false. `review_status` records only what the sender stated about a transcript they supplied.
+    """
+
+    # user_provided: sent with the request. machine_generated: recognised from this recording. none: no text available.
     source: Literal["user_provided", "machine_generated", "none"]
+    # user_attested: the sender stated they checked their transcript against the recording. Not verified by the API.
+    review_status: Literal["not_reviewed", "user_attested"] = "not_reviewed"
     human_verified: Literal[False] = False
     text: str | None = None
+
+
+class SharedTranscript(TranscriptInfo):
+    # Which text both recordings were aligned to.
+    origin: Literal["participant_transcript", "reference_transcript", "reference_recognition"]
 
 
 class Transcripts(BaseModel):
     participant: TranscriptInfo
     reference: TranscriptInfo | None = None
-    shared_for_comparison: TranscriptInfo | None = Field(
+    shared_for_comparison: SharedTranscript | None = Field(
         default=None, description="The text both recordings were aligned to, when a comparison was made."
     )
 
@@ -124,6 +136,7 @@ class AnalyzeResponse(BaseModel):
     comparison: ComparisonResult | None = Field(description="Measured differences from the reference, when one could be used.")
     findings: list[Finding]
     rules: list[RuleReport]
+    coaching: list[CoachingTip] = Field(description="Rule-based tips, one per kind of finding. Empty when there are no findings.")
     settings: DetectionSettings
     limitations: list[str]
 
@@ -289,6 +302,12 @@ def create_app(settings: Settings | None = None, transcriber: Transcriber | None
         reference_transcript: Annotated[
             str | None, Form(max_length=MAX_TRANSCRIPT_CHARS, description="Optional text of the reference recording.")
         ] = None,
+        transcript_reviewed: Annotated[
+            bool, Form(description="Set if you have checked `transcript` against the participant recording. Recorded as your statement, not verified.")
+        ] = False,
+        reference_transcript_reviewed: Annotated[
+            bool, Form(description="Set if you have checked `reference_transcript` against the reference recording.")
+        ] = False,
         language: Language = None,
     ) -> AnalyzeResponse:
         """
@@ -309,19 +328,32 @@ def create_app(settings: Settings | None = None, transcriber: Transcriber | None
         feature_result = measure(audio, own_text)
         transcription, transcription_status = try_transcription(audio, language)
 
+        def attested(flag: bool) -> str:
+            return "user_attested" if flag else "not_reviewed"
+
         withheld: str | None = None
-        shared: TranscriptInfo | None = None
+        shared: SharedTranscript | None = None
         reference_analysis: DeliveryAnalysis | None = None
         reference_summary: ReferenceSummary | None = None
         reference_info: TranscriptInfo | None = None
-        participant_text, participant_source = (own_text, "user_provided") if own_text else (None, "none")
+        # What this recording's own transcript is: the supplied text, or else what was recognised in it.
+        recognised_here = transcription.text.strip() if transcription else ""
+        participant_info = (
+            TranscriptInfo(source="user_provided", review_status=attested(transcript_reviewed), text=own_text)
+            if own_text
+            else TranscriptInfo(source="machine_generated", text=recognised_here)
+            if recognised_here
+            else TranscriptInfo(source="none")
+        )
+        # The text this recording is aligned to. With a reference it is the shared text, which may come from the reference.
+        alignment_text, alignment_source = participant_info.text, "supplied" if own_text else "transcribed"
 
         if reference_audio is not None:
             reference_features = measure(reference_audio, reference_text)
             reference_transcription, reference_transcription_status = try_transcription(reference_audio, language)
             recognised = reference_transcription.text.strip() if reference_transcription else ""
             reference_info = (
-                TranscriptInfo(source="user_provided", text=reference_text)
+                TranscriptInfo(source="user_provided", review_status=attested(reference_transcript_reviewed), text=reference_text)
                 if reference_text
                 else TranscriptInfo(source="machine_generated", text=recognised)
                 if recognised
@@ -329,16 +361,18 @@ def create_app(settings: Settings | None = None, transcriber: Transcriber | None
             )
             if own_text and reference_text and not _same_words(own_text, reference_text):
                 withheld = "The participant and reference transcripts contain different words, so the recordings are not compared word for word."
-            else:
-                # One text for both recordings: a supplied one if there is one, otherwise what was recognised in the reference.
-                text, source = (
-                    (own_text or reference_text, "user_provided") if (own_text or reference_text) else (recognised or None, "machine_generated")
+            elif own_text:
+                shared = SharedTranscript(source="user_provided", review_status=attested(transcript_reviewed), text=own_text, origin="participant_transcript")
+            elif reference_text:
+                shared = SharedTranscript(
+                    source="user_provided", review_status=attested(reference_transcript_reviewed), text=reference_text, origin="reference_transcript"
                 )
-                if text:
-                    shared = TranscriptInfo(source=source, text=text)
-                    participant_text, participant_source = text, source
-                else:
-                    withheld = "No transcript was supplied and none could be recognised in the reference recording."
+            elif recognised:
+                shared = SharedTranscript(source="machine_generated", text=recognised, origin="reference_recognition")
+            else:
+                withheld = "No transcript was supplied and none could be recognised in the reference recording."
+            if shared:
+                alignment_text, alignment_source = shared.text, "supplied"
             reference_alignment, reference_alignment_status = try_alignment(
                 shared.text if shared else reference_text or recognised or None, reference_transcription, "supplied"
             )
@@ -346,17 +380,13 @@ def create_app(settings: Settings | None = None, transcriber: Transcriber | None
                 features=reference_features, transcription=reference_transcription, alignment=reference_alignment
             )
 
-        if participant_text is None and transcription is not None and transcription.text.strip():
-            participant_text, participant_source = transcription.text, "machine_generated"
-        alignment, alignment_component = try_alignment(
-            participant_text, transcription, "supplied" if participant_source == "user_provided" or shared else "transcribed"
-        )
+        alignment, alignment_component = try_alignment(alignment_text, transcription, alignment_source)
         participant_analysis = DeliveryAnalysis(features=feature_result, transcription=transcription, alignment=alignment)
 
         detection = run_detection(
             participant_analysis,
             reference_analysis,
-            transcript_source=shared.source if shared else participant_source,
+            transcript_source=shared.source if shared else participant_info.source,
             comparison_withheld_reason=withheld,
             settings=detection_settings,
         )
@@ -392,7 +422,7 @@ def create_app(settings: Settings | None = None, transcriber: Transcriber | None
             transcription=transcription,
             alignment=alignment,
             transcripts=Transcripts(
-                participant=TranscriptInfo(source=participant_source, text=participant_text),
+                participant=participant_info,
                 reference=reference_info,
                 shared_for_comparison=shared if detection.alignment_status.status == "aligned" else None,
             ),
@@ -401,6 +431,7 @@ def create_app(settings: Settings | None = None, transcriber: Transcriber | None
             comparison=comparison,
             findings=detection.findings,
             rules=detection.rules,
+            coaching=build_coaching(detection.findings),
             settings=detection_settings,
             limitations=limitations,
         )

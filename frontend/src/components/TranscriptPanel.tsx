@@ -1,5 +1,6 @@
 import type { AnalyzeResponse, WordAlignmentStatus } from '../lib/api'
 import { formatPercent, formatTime } from '../lib/format'
+import { describeTranscript } from './RealReport'
 import { Badge, EmptyState } from './ui'
 
 interface DisplayWord {
@@ -95,6 +96,11 @@ export function TranscriptPanel({
         <h3 className="text-xs font-semibold tracking-widest text-muted uppercase">
           {supplied ? 'Your transcript, word by word' : 'Word timestamps'}
         </h3>
+        {result.transcripts && (
+          <p className="mt-2 text-xs text-muted">
+            Transcript used: {describeTranscript(result.transcripts.shared_for_comparison ?? result.transcripts.participant)}.
+          </p>
+        )}
 
         {supplied && alignment && (
           <p className="mt-2 text-sm text-muted">

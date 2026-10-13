@@ -8,6 +8,7 @@ FindingCategory = Literal[
     "rushed_delivery",
     "slow_delivery",
     "excessive_pause",
+    "irregular_pauses",
     "filler_word",
     "uneven_pacing",
     "pitch_monotony",
@@ -30,6 +31,8 @@ class DetectionSettings(BaseModel):
     # A recording is only compared when at least this share of the shared transcript was recognised in it.
     min_alignment_coverage: float = Field(default=0.6, gt=0, le=1)
     min_compared_words: int = Field(default=10, ge=2)
+    # Below this share of the transcript compared, reference-based findings are not rated 'high' quality.
+    high_quality_compared_fraction: float = Field(default=0.8, gt=0, le=1)
     min_duration_sec: float = Field(default=3.0, gt=0)
 
     # Pace against a reference: participant speaking time divided by reference speaking time for the same words.
@@ -63,6 +66,8 @@ class DetectionSettings(BaseModel):
 
     # Non-lexical hesitation sounds only. Words such as 'like' or 'so' are real words and are not counted.
     filler_words: tuple[str, ...] = ("um", "umm", "uh", "uhh", "uhm", "er", "erm", "hmm", "mm", "mhm")
+    # Below this recogniser probability a filler is reported as 'possible' with low evidence quality.
+    filler_min_probability: float = Field(default=0.5, ge=0, le=1)
 
 
 class Span(BaseModel):
@@ -92,6 +97,9 @@ class AlignmentStatus(BaseModel):
     transcript_source: Literal["user_provided", "machine_generated", "none"] = "none"
     transcript_word_count: int = 0
     words_compared: int = 0
+    words_excluded: dict[str, int] = Field(
+        default={}, description="Transcript words left out of the comparison, counted by reason."
+    )
     participant_coverage: float | None = None
     reference_coverage: float | None = None
     participant_window: Span | None = None

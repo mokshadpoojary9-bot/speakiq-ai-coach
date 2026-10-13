@@ -10,6 +10,7 @@ import pytest
 from app.audio import extract_features
 from app.comparison import compare_deliveries
 from app.detection import DetectionSettings, run_detection
+from app.detection.coaching import TEMPLATES, build_coaching
 from app.detection.rules import pitch_window_stats, silence_within
 
 from .audio_samples import SR, loaded, silence, tone
@@ -52,6 +53,7 @@ def test_an_identically_paced_take_produces_no_findings_and_every_rule_reports_t
         "rushed_delivery": "not_triggered",
         "slow_delivery": "not_triggered",
         "excessive_pause": "not_triggered",
+        "irregular_pauses": "not_triggered",
         "uneven_pacing": "not_triggered",
         "filler_word": "not_triggered",
         "pitch_monotony": "not_triggered",
@@ -250,6 +252,60 @@ def test_real_words_are_never_counted_as_fillers_and_zero_is_not_called_none():
     assert "not evidence that there were none" in report.reason
 
 
+def spoken_with(replacements: dict[int, str], probabilities: dict[int, float] | None = None):
+    take = make_take()
+    spoken = list(take.words)
+    for index, word in replacements.items():
+        spoken[index] = word
+    analysis = analysis_of(take, spoken=spoken, transcript=" ".join(spoken), source="transcribed")
+    for index, probability in (probabilities or {}).items():
+        analysis.transcription.words[index].probability = probability
+    return take, analysis
+
+
+@pytest.mark.parametrize("heard", ["um", "Um,", "UH", "uh...", "Erm,", "ER,", "hmm", "Hmmmm.", "ummm", "uhhh", "errm", "mm", "mhm"])
+def test_filler_spellings_the_recogniser_produces_are_recognised(heard):
+    """Includes the capitalised and punctuated forms the real model returned for synthesised test speech."""
+    take, analysis = spoken_with({9: heard})
+
+    finding = only(run_detection(analysis), "filler_word")
+
+    assert (finding.start, finding.end) == (take.starts[9], take.ends[9])
+
+
+@pytest.mark.parametrize("heard", ["umbrella", "her", "him", "mum", "error", "a", "I", "m", "hum", "summer", "ermine", "uhuru", "oh", "like"])
+def test_words_that_merely_resemble_fillers_are_not_reported(heard):
+    _, analysis = spoken_with({9: heard})
+
+    assert "filler_word" not in categories(run_detection(analysis))
+
+
+def test_a_filler_the_recogniser_was_unsure_of_is_only_possible():
+    _, analysis = spoken_with({9: "um", 20: "uh"}, probabilities={9: 0.33, 20: 0.91})
+
+    unsure, sure = [f for f in run_detection(analysis).findings if f.category == "filler_word"]
+
+    assert unsure.title == "Possible filler sound: “um”"
+    assert unsure.evidence_quality == "low"
+    assert "It was not confident (probability 0.33)." in unsure.explanation
+    assert sure.title == "Filler sound: “uh”"
+    assert sure.evidence_quality == "moderate"
+    assert unsure.evidence[0].participant_value == 0.33
+
+
+def test_filler_rule_reports_a_rate_and_one_finding_per_occurrence():
+    take, analysis = spoken_with({3: "um", 4: "um", 30: "uh"})
+    result = run_detection(analysis)
+
+    report = rule(result, "filler_word")
+    fillers = [f for f in result.findings if f.category == "filler_word"]
+
+    assert (report.status, report.findings) == ("triggered", 3)
+    assert len({f.id for f in fillers}) == 3
+    assert report.measured["fillers"] == 3
+    assert report.measured["fillers_per_minute"] == pytest.approx(3 / take.ends[-1] * 60, abs=0.2)
+
+
 def test_fillers_are_withheld_without_word_timestamps():
     analysis = analysis_of(make_take())
     analysis.transcription = None
@@ -318,6 +374,125 @@ def test_an_unusable_reference_is_reported_and_not_compared():
     assert result.alignment_status.status == "unavailable"
     assert result.alignment_status.reason.startswith("The reference recording cannot be used:")
     assert result.signal_quality.usable  # the participant recording itself is fine
+
+
+# --- Recognition errors and unmatched words (limitations fix) --------------------------------
+
+
+def test_words_left_out_of_the_comparison_are_counted_by_reason():
+    take = make_take(rate=BASE_RATE * 1.5)
+    spoken = list(take.words)
+    for i in (10, 12, 14):
+        spoken[i] = f"misheard{i}"  # leaves words 11 and 13 matched but with no matched neighbour
+    result = detect(take, spoken=spoken)
+
+    status = result.alignment_status
+    assert status.words_excluded == {"not_recognised_in_participant": 3, "isolated_match": 2}
+    assert status.words_compared == WORDS - 5
+    assert only(result, "rushed_delivery").evidence[0].ratio == pytest.approx(1 / 1.5, abs=0.02)
+
+
+def test_an_isolated_match_at_the_wrong_place_cannot_distort_the_comparison():
+    """A repeated word matched to a later occurrence: surrounded by unmatched words, with a time from elsewhere."""
+    take = make_take()
+    analysis = analysis_of(take, transcript=TEXT)
+    words = analysis.alignment.words
+    for i in (10, 12):
+        words[i] = words[i].model_copy(update={"status": "unaligned", "start": None, "end": None})
+    words[11] = words[11].model_copy(update={"start": take.starts[30], "end": take.ends[30]})  # ten seconds late
+
+    result = run_detection(analysis, REFERENCE, transcript_source="user_provided")
+
+    assert result.alignment_status.words_excluded == {"not_recognised_in_participant": 2, "isolated_match": 1}
+    assert result.alignment_status.words_compared == WORDS - 3  # the words after it are all still compared
+    assert result.findings == []
+    assert rule(result, "rushed_delivery").measured["ratio"] == pytest.approx(1.0, abs=0.02)
+
+
+def test_findings_resting_on_a_thin_comparison_are_not_rated_high_quality():
+    take = make_take(rate=BASE_RATE * 1.5)
+    spoken = [w if i < 28 else f"misheard{i}" for i, w in enumerate(take.words)]  # 70% of the transcript recognised
+
+    thin = only(detect(take, spoken=spoken), "rushed_delivery")
+    full = only(detect(take), "rushed_delivery")
+
+    assert (full.evidence_quality, thin.evidence_quality) == ("high", "moderate")
+    assert thin.limitations[-1].startswith("Only 28 of 40 transcript words could be compared")
+    assert not any("could be compared" in text for text in full.limitations)
+    assert thin.evidence[0].ratio == pytest.approx(1 / 1.5, abs=0.02)  # measured over the 28 words only
+
+
+def test_reference_free_findings_are_not_downgraded_by_comparison_coverage():
+    take = make_take(pauses={5: 2.0}, rate=BASE_RATE * 1.5)
+    spoken = [w if i < 28 else f"misheard{i}" for i, w in enumerate(take.words)]
+    spoken[20] = "um"
+    result = detect(take, spoken=spoken)
+
+    filler = only(result, "filler_word")
+    assert filler.reference_interval is None
+    assert not any("could be compared" in text for text in filler.limitations)
+
+
+# --- Pause placement against a reference (limitations fix) -----------------------------------
+
+
+def test_a_pause_the_reference_makes_and_the_participant_skips_is_reported():
+    reference_take = make_take(pauses={14: 1.0})
+    participant_take = make_take()
+    result = run_detection(
+        analysis_of(participant_take, transcript=TEXT), analysis_of(reference_take), transcript_source="user_provided"
+    )
+
+    finding = only(result, "irregular_pauses")
+    assert finding.rule.rule_id == "pause_placement_vs_reference"
+    # The participant interval spans the two words either side of where the reference pauses.
+    assert (finding.start, finding.end) == (pytest.approx(participant_take.starts[14], abs=0.01), pytest.approx(participant_take.ends[15], abs=0.01))
+    assert finding.reference_interval.start == pytest.approx(reference_take.ends[14], abs=0.06)
+    assert finding.reference_interval.end == pytest.approx(reference_take.starts[15], abs=0.06)
+    silence_evidence = finding.evidence[0]
+    assert silence_evidence.participant_value == 0
+    assert silence_evidence.reference_value == pytest.approx(1.0, abs=0.08)
+    assert (finding.severity, finding.evidence_quality) == (None, "high")
+    assert "excessive_pause" not in categories(result)
+    assert rule(result, "irregular_pauses").measured == {"reference_internal_pauses": 1, "pauses_located_between_aligned_words": 1}
+
+
+def test_matching_pause_placement_is_not_a_finding():
+    reference = analysis_of(make_take(pauses={14: 1.0, 30: 0.8}))
+    result = run_detection(analysis_of(make_take(pauses={14: 0.9, 30: 0.7}), transcript=TEXT), reference)
+
+    assert result.findings == []
+    assert rule(result, "irregular_pauses").status == "not_triggered"
+
+
+def test_pauses_in_different_places_are_reported_in_both_directions():
+    """The reference pauses after word 14; the participant pauses after word 30 instead."""
+    reference = analysis_of(make_take(pauses={14: 1.0}))
+    result = run_detection(analysis_of(make_take(pauses={30: 1.0}), transcript=TEXT), reference)
+
+    assert sorted(categories(result)) == ["excessive_pause", "irregular_pauses"]
+    assert only(result, "irregular_pauses").start < only(result, "excessive_pause").start
+
+
+def test_pause_placement_is_withheld_without_a_usable_reference():
+    alone = rule(run_detection(analysis_of(make_take(), source="transcribed")), "irregular_pauses")
+    different = analysis_of(make_take(), transcript=" ".join(f"x{i}" for i in range(WORDS)))
+    unusable = rule(run_detection(different, analysis_of(make_take(pauses={14: 1.0}))), "irregular_pauses")
+
+    assert alone.status == "withheld"
+    assert "there is no general rule for how they should be spaced" in alone.reason
+    assert unusable.status == "withheld"
+    assert "The reference could not be used" in unusable.reason
+
+
+def test_pause_placement_in_heavy_noise_is_only_possible():
+    reference_take = make_take(pauses={14: 1.5})
+    take = make_take()
+    rms = float(np.sqrt(np.mean(take.audio**2)))
+    result = detect(take, reference=analysis_of(reference_take), audio=take.audio + noise(len(take.audio), rms / 10 ** (5 / 20)))
+
+    for finding in [f for f in result.findings if f.category == "irregular_pauses"]:
+        assert finding.title.startswith("Possibly") and finding.evidence_quality == "low"
 
 
 # --- G9: missing features, invalid timestamps, insufficient evidence -------------------------
@@ -631,3 +806,62 @@ def test_no_finding_or_limitation_claims_a_cause_or_a_diagnosis():
     for word in ("because you", "anxious", "nervous", "disorder", "diagnos", "accent is"):
         assert word not in text.replace("a diagnosis, or", "")
     assert any("not proof of a problem, a diagnosis, or a statement about cause" in line for line in result.limitations)
+
+
+# --- Rule-based coaching (limitations fix) ---------------------------------------------------
+
+
+def test_one_tip_per_kind_of_finding_quoting_the_measured_evidence():
+    take = make_take(rate=BASE_RATE * 1.5, pauses={5: 1.5, 14: 1.5, 22: 1.5, 30: 1.5}, swing_semitones=0.4)
+    spoken = list(take.words)
+    spoken[35] = "um"
+    result = run_detection(analysis_of(take, spoken=spoken, transcript=TEXT), REFERENCE, transcript_source="user_provided")
+
+    tips = build_coaching(result.findings)
+
+    by_category = {tip.category: tip for tip in tips}
+    assert set(by_category) == {f.category for f in result.findings}
+    assert len(tips) == len(by_category)
+    pause_tip = by_category["excessive_pause"]
+    pauses = [f for f in result.findings if f.category == "excessive_pause"]
+    assert pause_tip.finding_ids == [f.id for f in pauses] and len(pauses) == 4
+    # The first three are quoted in full; the rest are counted, never dropped silently.
+    assert pause_tip.based_on == " ".join(f.explanation for f in pauses[:3]) + " And 1 more like this."
+    assert by_category["filler_word"].action == "Replace the filler sounds with a short silent pause."
+    assert all(tip.source == "rule_based" for tip in tips)
+
+
+def test_coaching_differs_with_and_without_a_reference_and_never_exists_without_a_finding():
+    with_reference = build_coaching(detect(make_take(rate=BASE_RATE * 1.5)).findings)
+    alone = build_coaching(run_detection(analysis_of(make_take(rate=3.75), source="transcribed")).findings)
+
+    assert with_reference[0].id == "tip:pace_vs_reference:rushed_delivery"
+    assert alone[0].id == "tip:pace_words_per_minute:rushed_delivery"
+    assert "reference" in with_reference[0].practice and "Adding a reference recording" in alone[0].practice
+    assert build_coaching([]) == []
+
+
+def test_weak_evidence_adds_a_caution_and_unknown_rules_get_no_invented_advice():
+    take = make_take(rate=BASE_RATE * 1.5)
+    result = detect(take, audio=np.clip(take.audio * 8, -1, 1))
+    tips = build_coaching(result.findings)
+
+    assert tips and all(tip.caution for tip in tips)
+    unknown = result.findings[0].model_copy(deep=True)
+    unknown.rule.rule_id = "a_rule_with_no_template"
+    assert build_coaching([unknown]) == []
+
+
+def test_the_caution_says_how_much_of_the_evidence_is_weak():
+    _, analysis = spoken_with({9: "um", 20: "uh", 30: "er"}, probabilities={9: 0.3})
+
+    (tip,) = build_coaching(run_detection(analysis).findings)
+
+    assert tip.caution == "1 of the 3 findings behind this have weak evidence; see their limitations before acting on it."
+
+
+def test_coaching_text_makes_no_causal_or_personal_claims():
+    text = " ".join(action + " " + practice for action, practice in TEMPLATES.values()).lower()
+
+    for phrase in ("because you", "nervous", "anxious", "confident", "accent", "you are a", "bad", "poor", "wrong"):
+        assert phrase not in text

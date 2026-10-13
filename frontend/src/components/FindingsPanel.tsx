@@ -6,6 +6,7 @@ export const categoryLabel: Record<FindingCategory, string> = {
   rushed_delivery: 'Rushed delivery',
   slow_delivery: 'Slow delivery',
   excessive_pause: 'Pauses',
+  irregular_pauses: 'Pause placement',
   filler_word: 'Filler words',
   uneven_pacing: 'Uneven pacing',
   pitch_monotony: 'Pitch variation',
@@ -16,6 +17,7 @@ export const categoryColor: Record<FindingCategory, string> = {
   rushed_delivery: '#f07f7a',
   slow_delivery: '#e5b454',
   excessive_pause: '#8fb8d8',
+  irregular_pauses: '#6f9fe0',
   filler_word: '#c59be8',
   uneven_pacing: '#e5b454',
   pitch_monotony: '#7fd1c7',
@@ -141,6 +143,12 @@ export function FindingsPanel({ result, onSeek }: { result: AnalyzeResponse; onS
           `Compared with ${result.reference?.filename ?? 'the reference'} over ${alignment.words_compared} of ${alignment.transcript_word_count} words recognised in both recordings (${alignment.transcript_source === 'user_provided' ? 'your transcript' : 'machine-recognised text'}).`}
         {alignment.status === 'no_reference' && 'No reference recording was supplied, so only the rules that need no reference were run.'}
         {alignment.status === 'unavailable' && `The reference recording was not used. ${alignment.reason}`}
+        {alignment.status === 'aligned' &&
+          alignment.words_excluded &&
+          Object.keys(alignment.words_excluded).length > 0 &&
+          ` Left out of the comparison: ${Object.entries(alignment.words_excluded)
+            .map(([reason, count]) => `${count} ${reason.replaceAll('_', ' ')}`)
+            .join(', ')}.`}
       </p>
 
       {result.findings.length === 0 ? (

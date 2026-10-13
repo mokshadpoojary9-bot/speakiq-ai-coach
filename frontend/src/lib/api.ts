@@ -137,6 +137,7 @@ export type FindingCategory =
   | 'rushed_delivery'
   | 'slow_delivery'
   | 'excessive_pause'
+  | 'irregular_pauses'
   | 'filler_word'
   | 'uneven_pacing'
   | 'pitch_monotony'
@@ -198,6 +199,8 @@ export interface AlignmentStatus {
   transcript_source: 'user_provided' | 'machine_generated' | 'none'
   transcript_word_count: number
   words_compared: number
+  /** Transcript words left out of the comparison, counted by reason. */
+  words_excluded?: Record<string, number>
   participant_window: TimeSpan | null
   reference_window: TimeSpan | null
   normalization: string
@@ -205,9 +208,25 @@ export interface AlignmentStatus {
 
 export interface TranscriptInfo {
   source: 'user_provided' | 'machine_generated' | 'none'
+  /** user_attested: the sender stated they checked their transcript. The API cannot verify that. */
+  review_status: 'not_reviewed' | 'user_attested'
   /** The API has no evidence of human review and never reports any. */
   human_verified: false
   text: string | null
+  /** Only on the shared transcript: which text both recordings were aligned to. */
+  origin?: 'participant_transcript' | 'reference_transcript' | 'reference_recognition'
+}
+
+/** Fixed, rule-based wording built from findings. No language model. */
+export interface CoachingTip {
+  id: string
+  category: FindingCategory
+  finding_ids: string[]
+  action: string
+  practice: string
+  based_on: string
+  caution: string | null
+  source: string
 }
 
 export interface AnalyzeResponse {
@@ -224,6 +243,8 @@ export interface AnalyzeResponse {
   alignment_status: AlignmentStatus
   findings: DetectedFinding[]
   rules: RuleReport[]
+  /** Absent in responses from backends older than rule-based coaching. */
+  coaching?: CoachingTip[]
   limitations: string[]
 }
 
@@ -292,11 +313,16 @@ export async function analyzeRecording(
   transcript: string,
   signal?: AbortSignal,
   reference?: File | null,
+  transcriptReviewed = false,
 ): Promise<AnalyzeResponse> {
   const form = new FormData()
   form.append('file', file, file.name)
   if (reference) form.append('reference', reference, reference.name)
-  if (transcript.trim()) form.append('transcript', transcript)
+  if (transcript.trim()) {
+    form.append('transcript', transcript)
+    // A statement by the user, recorded as such. It only applies to text they supplied.
+    if (transcriptReviewed) form.append('transcript_reviewed', 'true')
+  }
 
   const result = await request<AnalyzeResponse>('/api/analyze', { method: 'POST', body: form, signal })
   if (!result || typeof result !== 'object' || !result.features || !result.components || !Array.isArray(result.findings)) {

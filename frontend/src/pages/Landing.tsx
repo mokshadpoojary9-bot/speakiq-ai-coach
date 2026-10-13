@@ -65,8 +65,8 @@ export default function Landing() {
         <p className="mt-6 max-w-2xl text-sm text-muted">
           <strong className="font-medium text-warn">Early build.</strong> Uploading a recording, with an optional
           reference recording of the same text, gives you real measurements, a transcript, word timing and findings
-          with their evidence. Coaching and reports are not built yet; those views run on a clearly labelled demo
-          fixture.
+          with their evidence, rule-based suggestions and a printable report. Before you analyse anything, the pages
+          show a clearly labelled demo fixture.
         </p>
       </section>
 

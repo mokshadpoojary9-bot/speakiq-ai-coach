@@ -401,3 +401,59 @@ def test_pitch_range_settings_come_from_the_environment(monkeypatch):
     settings = Settings().pitch_settings
 
     assert (settings.min_hz, settings.max_hz) == (40, 450)
+
+
+# --- The real low-pitched, creaky voice in the committed examples (limitations fix) -----------
+
+
+def example_features():
+    """Pitch results for the committed example recordings of LibriSpeech speaker 5703 (median about 80 Hz)."""
+    import json
+
+    from app.dataset.__main__ import EXAMPLES_DIR
+
+    manifest = json.loads((EXAMPLES_DIR / "manifest.json").read_text(encoding="utf-8"))
+    results = {}
+    for sample in manifest["samples"]:
+        path = EXAMPLES_DIR / sample["audio_path"]
+        audio = load_audio(path.read_bytes(), path.name, max_duration_sec=600)
+        results[sample["flaw_category"] or "reference"] = extract_features(audio)
+    return results
+
+
+def test_the_real_low_voice_is_measured_and_flagged_rather_than_discarded_or_trusted():
+    features = example_features()
+    reference = features["reference"].pitch
+
+    # The low pitch is reported, not thrown away for being under 75 Hz.
+    assert reference.status == "measured"
+    assert 60 < reference.median_hz < 100
+    assert reference.tracking_floor_hz < 75
+    # But this recording's range moves when the tracker's limit is nudged, so it is marked unreliable.
+    assert reference.reliability == "low"
+    assert reference.range_sensitivity_semitones > 1 or "voiced frames by" in reference.limitations[0]
+    assert "changes when the tracker's lower limit is nudged" in reference.limitations[0]
+
+
+def test_recordings_of_that_voice_judged_reliable_agree_with_each_other():
+    """Only timing was changed in these samples, so their pitch range should match. The ones the stability
+    check accepts do agree; the ones that would disagree are the ones it rejects."""
+    features = example_features()
+    timing_only = ("rushed_delivery", "slow_delivery", "uneven_pacing", "excessive_pauses")
+    accepted = [features[c].pitch.range_semitones for c in timing_only if features[c].pitch.reliability == "ok"]
+
+    assert len(accepted) >= 2
+    assert max(accepted) - min(accepted) < 1.5
+    assert all(features[c].pitch.range_sensitivity_semitones < 1 for c in timing_only if features[c].pitch.reliability == "ok")
+
+
+def test_pitch_findings_are_withheld_for_the_unreliable_real_recording():
+    from app.comparison.schemas import DeliveryAnalysis
+    from app.detection import run_detection
+
+    result = run_detection(DeliveryAnalysis(features=example_features()["reference"]))
+
+    report = next(r for r in result.rules if r.category == "pitch_monotony")
+    assert report.status == "withheld"
+    assert "not reliable for this recording" in report.reason
+    assert not any(f.category == "pitch_monotony" for f in result.findings)

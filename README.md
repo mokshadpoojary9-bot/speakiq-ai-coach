@@ -9,7 +9,8 @@ The full specification lives in [`docs/PROJECT_SPEC.yaml`](docs/PROJECT_SPEC.yam
 | Area | State |
 | --- | --- |
 | Backend API: health, acoustic features, transcription, word alignment, combined analysis | Working (see [API](#api)) |
-| Findings with intervals and evidence for pace, pauses, fillers, uneven pacing and pitch variation (`POST /api/analyze`, optional reference recording) | Working; shown on the dashboard. See [Findings](#findings-apianalyze) |
+| Findings with intervals and evidence for pace, pauses, pause placement, fillers, uneven pacing and pitch variation (`POST /api/analyze`, optional reference recording) | Working; shown on the dashboard. See [Findings](#findings-apianalyze) |
+| Rule-based suggestions and a printable report for your recording | Working on the Evidence Coach and Reports pages. Fixed wording built from the findings; no language model |
 | Raw comparison of two recordings (`POST /api/compare`) | Working for measured differences only; the frontend uses `/api/analyze` instead |
 | Recording-quality checks: clipping, pitch-tracking reliability, noisy-pause confidence | Working; shown on the dashboard |
 | Local transcription with faster-whisper | Working; no Hugging Face token needed for the default model |
@@ -17,10 +18,10 @@ The full specification lives in [`docs/PROJECT_SPEC.yaml`](docs/PROJECT_SPEC.yam
 | Audio file validation, playback and waveform in the workspace | Working, in the browser only |
 | Workspace → backend: upload a recording and an optional reference, get real measurements, transcript, word timing and findings | Working (`POST /api/analyze`) |
 | Dashboard and Acoustic Twin for your recording | Working with real backend results; switchable to the demo fixture |
-| Demo dashboard view, coaching text and report content | **Demo fixture** (`frontend/src/fixtures/demoAnalysis.ts`), not computed from audio. Evidence Coach and Reports are demo-only |
+| Demo dashboard, coaching and report content | **Demo fixture** (`frontend/src/fixtures/demoAnalysis.ts`), not computed from audio. Shown before you analyse a recording, or when you switch to it |
 | Contrastive demonstration dataset: 3 real recordings, 72 transformed variants, schema, validator, dataset card | Built and validated (see [Dataset](#dataset)) |
 | Articulation or clarity findings | Deliberately not supported: no measurement was found that would not penalise accent, voice or microphone |
-| Coaching and reports for real recordings | Not implemented; Evidence Coach and Reports remain demo-only |
+| Free-form coaching questions, language-model coaching | Not implemented |
 | Dataset publication | Not published; export and upload guide in `data/HOSTING.md` |
 | Free-form coach questions, language model, Supabase, hosting | Not implemented or connected |
 
@@ -126,8 +127,9 @@ Run the backend and the frontend in two separate terminals. The frontend footer 
 2. Press **Run analysis**. The file goes to `POST /api/analyze` on your backend.
 3. The result shows which steps completed, the recognised text, a time for each word and how many findings there are. **Open the dashboard** for the findings with their intervals and evidence, the rules that were checked or withheld, the waveform, playback (select a word or a finding to play from it), measured contours, and each metric's method and limitations.
 4. The **Acoustic Twin** shows the same recording's measured energy and pitch in 3D (or 2D).
+5. **Evidence Coach** shows the rule-based suggestions for your findings, and **Reports** a printable summary of the status, findings, suggestions and what could not be checked.
 
-Findings for your recording come only from the rules described under [Findings](#findings-apianalyze). There is no coaching or report for real recordings yet; those pages show the demo fixture and say so.
+Findings and suggestions for your recording come only from the rules described under [Findings](#findings-apianalyze). Ticking "I have checked this transcript against the recording" is recorded as your statement; the app never describes a transcript as verified.
 
 ## API
 
@@ -139,7 +141,7 @@ All routes are under `/api`. Upload routes take a multipart form with `file` (WA
 | `POST /api/features` | `file`, optional `transcript` | Acoustic measurements |
 | `POST /api/transcribe` | `file`, optional `language` | Text, segments and word timestamps |
 | `POST /api/align` | `file`, optional `transcript`, optional `language` | Start and end time for each transcript word |
-| `POST /api/analyze` | `file`, optional `reference`, `transcript`, `reference_transcript`, `language` | The main route: measurements, transcription, alignment, signal quality and findings |
+| `POST /api/analyze` | `file`, optional `reference`, `transcript`, `reference_transcript`, `transcript_reviewed`, `reference_transcript_reviewed`, `language` | The main route: measurements, transcription, alignment, signal quality, findings and rule-based suggestions |
 | `POST /api/compare` | `reference`, `participant`, optional `transcript`, optional `language` | Measured differences between two recordings of the same text |
 
 ```powershell
@@ -204,7 +206,9 @@ Send the participant recording as `file`. Optionally add a `reference` recording
 | `completed_no_findings` | Rules ran and nothing crossed a threshold |
 | `partial` | Something could not run (unusable audio, no transcription, a reference that could not be used). `rules` and `limitations` say what and why |
 
-**How recordings are compared.** Both are aligned to one shared transcript: a supplied one, or the text recognised in the reference. A word is compared only if it was recognised at that position in both recordings, so every measurement covers the same spoken words; raw timestamps are never compared across recordings. The comparison is withheld, with the reason in `alignment_status`, when the two transcripts differ, when fewer than 60% of the words are recognised in either recording, or when fewer than 10 words line up. `transcripts` records whether each text was `user_provided` or `machine_generated`; the API never claims human verification.
+**How recordings are compared.** Both are aligned to one shared transcript: a supplied one, or the text recognised in the reference. A word is compared only if it was recognised at that position in both recordings, so every measurement covers the same spoken words; raw timestamps are never compared across recordings. The comparison is withheld, with the reason in `alignment_status`, when the two transcripts differ, when fewer than 60% of the words are recognised in either recording, or when fewer than 10 words line up. Words are also left out when a match stands alone with no matched neighbour, which is where a repeated word gets matched to the wrong place; `alignment_status.words_excluded` counts every omission by reason. When less than 80% of the transcript could be compared, reference-based findings are rated at most `moderate` and say so.
+
+**Transcript provenance.** `transcripts` gives, separately, each recording's own text and the text both were aligned to. Each has a `source` (`user_provided` or `machine_generated`) and a `review_status`. Sending `transcript_reviewed=true` with a transcript you supplied records `user_attested`: your statement that you checked it, which the API cannot verify. `human_verified` is always false, and machine-generated text can never be marked reviewed.
 
 **Rules.** Each has an ID, its thresholds in the response, and one of four outcomes in `rules`: `triggered`, `not_triggered`, `withheld` (with the reason) or `not_supported`.
 
@@ -212,8 +216,9 @@ Send the participant recording as `file`. Optionally add a `reference` recording
 | --- | --- | --- | --- |
 | Rushed / slow delivery | Speaking time for the same words, pauses removed, differs by more than 10% | Recognised words per minute above 200 or below 100 (English only, at least 20 words over 8 s) | With a reference only: minor, moderate from 20%, major from 35% |
 | Excessive pause | A measured pause at least 0.4 s longer than the reference's silence at the same words | A measured pause of 1.5 s or more | With a reference only: minor, moderate from 0.8 s, major from 1.5 s extra |
+| Pause placement | A place where the reference pauses and the participant's silence at the same words is at least 0.4 s shorter | Withheld: where pauses belong depends on the text | None |
 | Uneven pacing | Pace per run of about 5 words, relative to the speaker's overall pace, varies by 1.5x or more; stretches off by 25% are reported | Withheld | None |
-| Filler words | Recognised hesitation sounds (um, uh, er, erm, hmm, mm) at their word times | Same | None |
+| Filler words | Recognised hesitation sounds (um, uh, er, erm, hmm, mm, including drawn-out spellings) at their word times. Below 0.5 recogniser probability they are reported as "possible" with low evidence quality | Same | None |
 | Pitch variation ("possibly narrow") | Pitch range over voiced frames, in semitones around each speaker's own median, at most 70% of the reference's | Range below 4 semitones | None |
 | Articulation / clarity | Not supported | Not supported | — |
 
@@ -242,7 +247,14 @@ Every finding carries a stable `id`, the interval in the participant audio, the 
 
 In total the labelled flaw was reported for 38 of 45 mild-to-severe samples, and nothing was reported for the 3 references or the 12 unclear-articulation samples. Severity bands followed the dataset's tiers for pace (minor, moderate, major) and pauses. Five findings were of a category other than the label: four "slow delivery" on uneven-pacing samples, whose transform does make them longer overall, and one pause on a slowed sample. Pitch findings were withheld for 26 samples because tracking was flagged unreliable, almost all from the low-voiced speaker.
 
+Two further checks were run once on the development machine:
+
+- **Pause placement.** With the roles swapped, so that each pause-inserted sample is the reference and the original is the participant, 16 of the 21 inserted pauses were reported as a shorter or missing pause, none was reported elsewhere, and none was reported across 27 samples with identical timing. Three of the five misses are 0.35 s pauses, below the 0.4 s threshold.
+- **Fillers.** The dataset has no fillers, so three short clips were synthesised locally with the Windows text-to-speech voice (not committed, because the voice's redistribution terms are unclear). The model returned all 9 fillers in the two clips that had them, one as a different filler ("hmm" heard as "um"), and none in the clip without. Synthesised fillers are clearly pronounced; real hesitations are quieter and more likely to be dropped, so this is a best case.
+
 Read these numbers with care. The uneven-pacing and pitch thresholds were chosen using this same dataset, so their results here are optimistic. The dataset is 3 speakers of transformed audio, so this shows how the rules behave, not how accurate they are on natural speech.
+
+**Suggestions.** `coaching` holds one tip per kind of finding: fixed wording chosen by the rule that produced the findings, quoting their measured evidence, with a caution when that evidence is weak. There is no language model, no tip without a finding, and nothing about why a difference occurred.
 
 Acoustic features are always returned for valid audio. If transcription or alignment cannot run, that part is `null`, `components` gives its `status`, `code` and `message`, and rules that need words are withheld, so a missing model never blocks the acoustic measurements.
 

@@ -46,16 +46,3 @@ export function SourceSwitch({
     </div>
   )
 }
-
-/** For pages whose content has no real counterpart yet. */
-export function DemoOnlyNotice({ feature }: { feature: string }) {
-  const { session } = useAnalysisSession()
-  if (!session) return null
-  return (
-    <p role="note" className="mb-6 rounded-lg border border-warn/40 bg-warn/5 px-4 py-3 text-sm text-muted">
-      <strong className="font-medium text-warn">This page still shows demo data.</strong> Your recording “
-      {session.result.features.audio.filename}” was analysed, but {feature} for real recordings is not implemented
-      yet. Nothing below describes your recording.
-    </p>
-  )
-}

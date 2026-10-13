@@ -6,6 +6,7 @@ value it does not have, and none looks at who is speaking: pitch is only ever co
 semitones relative to the speaker's own median, never in Hz.
 """
 
+import re
 from dataclasses import dataclass
 
 import numpy as np
@@ -103,7 +104,7 @@ def assess_signal_quality(features: AudioFeatures, settings: DetectionSettings) 
                 code="clipping_detected",
                 level="warning",
                 message=f"Clipping detected ({clipping.flat_top_runs} flat-topped peaks). The recording is distorted, so every measurement is less trustworthy.",
-                affects=["rushed_delivery", "slow_delivery", "excessive_pause", "uneven_pacing", "pitch_monotony", "filler_word"],
+                affects=["rushed_delivery", "slow_delivery", "excessive_pause", "irregular_pauses", "uneven_pacing", "pitch_monotony", "filler_word"],
             )
         )
     elif clipping.verdict == "uncertain":
@@ -123,7 +124,7 @@ def assess_signal_quality(features: AudioFeatures, settings: DetectionSettings) 
                 code="pauses_low_confidence",
                 level="warning",
                 message=features.pauses.limitations[0],
-                affects=["excessive_pause", "rushed_delivery", "slow_delivery", "uneven_pacing"],
+                affects=["excessive_pause", "irregular_pauses", "rushed_delivery", "slow_delivery", "uneven_pacing"],
             )
         )
     return SignalQuality(usable=not any(issue.level == "blocking" for issue in issues), issues=issues)
@@ -209,13 +210,36 @@ def build_alignment(
                 **coverage,
             )
     pairs: list[WordPair] = []
+    excluded = {
+        "not_recognised_in_reference": 0,
+        "not_recognised_in_participant": 0,
+        "invalid_or_out_of_order_times": 0,
+        "isolated_match": 0,
+    }
     for r, p in zip(ref.words, par.words):
-        if r.status != "aligned" or p.status != "aligned" or None in (r.start, r.end, p.start, p.end):
+        if r.status != "aligned" or None in (r.start, r.end):
+            excluded["not_recognised_in_reference"] += 1
             continue
-        # A word is only usable if its times are valid and it comes after the previous usable word in both recordings.
-        in_order = not pairs or (r.start >= pairs[-1].ref_start and p.start >= pairs[-1].par_start)
-        if r.end >= r.start and p.end >= p.start and in_order:
+        if p.status != "aligned" or None in (p.start, p.end):
+            excluded["not_recognised_in_participant"] += 1
+            continue
+        if r.end >= r.start and p.end >= p.start:
             pairs.append(WordPair(r.index, p.word, r.start, r.end, p.start, p.end))
+        else:
+            excluded["invalid_or_out_of_order_times"] += 1
+    # A matched word with no matched neighbour on either side is where a repeated word such as 'the'
+    # gets matched to the wrong occurrence, so it is not trusted as an anchor. This is done before the
+    # order check so that one badly placed word cannot knock out the correctly placed words after it.
+    anchored = [pair for run in _runs(pairs) if len(run) >= 2 for pair in run]
+    excluded["isolated_match"] = len(pairs) - len(anchored)
+    pairs = []
+    for pair in anchored:
+        # A word is only usable if it comes after the previous usable word in both recordings.
+        if not pairs or (pair.ref_start >= pairs[-1].ref_start and pair.par_start >= pairs[-1].par_start):
+            pairs.append(pair)
+        else:
+            excluded["invalid_or_out_of_order_times"] += 1
+    coverage["words_excluded"] = {reason: count for reason, count in excluded.items() if count}
     if len(pairs) < settings.min_compared_words:
         return unavailable(
             f"Only {len(pairs)} words were recognised at the same position in both recordings; "
@@ -235,6 +259,24 @@ def build_alignment(
         ),
         pairs,
     )
+
+
+def _downgrade_for_thin_comparison(findings: list[Finding], alignment: AlignmentStatus, settings: DetectionSettings) -> None:
+    """Reference-based findings are not 'high' quality when much of the transcript could not be compared."""
+    if alignment.status != "aligned" or not alignment.transcript_word_count:
+        return
+    fraction = alignment.words_compared / alignment.transcript_word_count
+    if fraction >= settings.high_quality_compared_fraction:
+        return
+    note = (
+        f"Only {alignment.words_compared} of {alignment.transcript_word_count} transcript words could be compared "
+        "(the rest were misrecognised or skipped), so this rests on part of the recording."
+    )
+    for finding in findings:
+        if finding.reference_interval is not None:
+            if finding.evidence_quality == "high":
+                finding.evidence_quality = "moderate"
+            finding.limitations.append(note)
 
 
 def _runs(pairs: list[WordPair]) -> list[list[WordPair]]:
@@ -477,6 +519,79 @@ def pauses_against_reference(
     return report, findings
 
 
+def pause_placement(
+    participant: AudioFeatures, reference: AudioFeatures, pairs: list[WordPair], quality: SignalQuality, settings: DetectionSettings
+) -> tuple[RuleReport, list[Finding]]:
+    """Places where the reference pauses and the participant does not, or barely does.
+
+    Together with `pauses_against_reference`, which reports the opposite case, this covers how the
+    participant's pause placement departs from the reference's.
+    """
+    rule_id, category = "pause_placement_vs_reference", "irregular_pauses"
+    thresholds = {"pause_excess_sec": settings.pause_excess_sec}
+    if participant.pauses.status != "measured" or reference.pauses.status != "measured":
+        return _withheld(rule_id, category, "Pauses could not be measured in both recordings."), []
+
+    low = _quality("high", category, quality) == "low" or reference.pauses.reliability == "low"
+    findings: list[Finding] = []
+    located = 0
+    internal = [p for p in reference.pauses.intervals if p.position == "internal"]
+    for pause in internal:
+        before = [p for p in pairs if p.ref_end <= pause.start + BOUNDARY_TOLERANCE_SEC]
+        after = [p for p in pairs if p.ref_start >= pause.end - BOUNDARY_TOLERANCE_SEC]
+        if not before or not after or not (0 < after[0].index - before[-1].index <= MAX_WORDS_ACROSS_PAUSE):
+            continue
+        located += 1
+        left, right = before[-1], after[0]
+        duration = pause.end - pause.start
+        par_silence = silence_within(participant, left.par_start, right.par_end)
+        missing = duration - par_silence
+        if missing < settings.pause_excess_sec:
+            continue
+        findings.append(
+            Finding(
+                id=_finding_id(rule_id, left.par_start, right.par_end),
+                category=category,
+                title="Possibly shorter or missing pause compared with the reference" if low else "Shorter or missing pause compared with the reference",
+                start=_round(left.par_start),
+                end=_round(right.par_end),
+                reference_interval=Span(start=pause.start, end=pause.end),
+                evidence=[_evidence("silence_between_the_same_words", "s", par_silence, duration)],
+                comparison_method=(
+                    f"Measured silence across '{left.word}' to '{right.word}' in the participant recording, against the "
+                    "reference's measured pause between the same words. " + ALIGNMENT_STRATEGY
+                ),
+                rule=RuleUsed(
+                    rule_id=rule_id,
+                    description="Flag a place where the reference pauses and the participant's silence at the same words is shorter by more than the threshold.",
+                    thresholds=thresholds,
+                ),
+                evidence_quality="low" if low else "high",
+                explanation=(
+                    f"The reference pauses for {duration:.2f} s between '{left.word}' and '{right.word}'; "
+                    f"you have {par_silence:.2f} s of silence there, {missing:.2f} s less."
+                ),
+                limitations=[
+                    "Pausing differently from the reference is not necessarily worse; this only reports where the pattern differs.",
+                    "The interval covers the two words on either side of where the reference pauses, located by recognised word times.",
+                    "No severity is given for pause placement.",
+                    *(["Background noise makes the silence measurements uncertain."] if low else []),
+                    *_quality_notes(category, quality),
+                ],
+            )
+        )
+    report = RuleReport(
+        rule_id=rule_id,
+        category=category,
+        status="triggered" if findings else "not_triggered",
+        findings=len(findings),
+        measured={"reference_internal_pauses": len(internal), "pauses_located_between_aligned_words": located},
+        thresholds=thresholds,
+        reason="" if located == len(internal) else f"{len(internal) - located} reference pause(s) could not be placed between aligned words and were not compared.",
+    )
+    return report, findings
+
+
 def pauses_without_reference(participant: AudioFeatures, quality: SignalQuality, settings: DetectionSettings) -> tuple[RuleReport, list[Finding]]:
     rule_id, category = "long_pause", "excessive_pause"
     thresholds = {"long_pause_sec": settings.long_pause_sec}
@@ -605,6 +720,14 @@ def uneven_pacing(
     )
 
 
+def _is_filler(key: str, fillers: set[str]) -> bool:
+    """Whether a normalised word is a hesitation sound, including drawn-out spellings such as 'ummm' or 'uhhh'."""
+    if key in fillers:
+        return True
+    squeezed = re.sub(r"(.)\1+", r"\1", key)  # 'ummm' -> 'um', 'errrm' -> 'erm'
+    return len(squeezed) >= 2 and squeezed in {re.sub(r"(.)\1+", r"\1", f) for f in fillers}
+
+
 def filler_words(participant: DeliveryAnalysis, quality: SignalQuality, settings: DetectionSettings) -> tuple[RuleReport, list[Finding]]:
     rule_id, category = "filler_lexicon", "filler_word"
     thresholds = {"fillers": ", ".join(settings.filler_words)}
@@ -616,21 +739,23 @@ def filler_words(participant: DeliveryAnalysis, quality: SignalQuality, settings
     findings = []
     for word in transcription.words:
         key = normalize(word.word)
-        if key not in fillers or word.end <= word.start:
+        if not _is_filler(key, fillers) or word.end <= word.start:
             continue
         unscripted = script is not None and key not in script
+        unsure = word.probability is not None and word.probability < settings.filler_min_probability
         findings.append(
             Finding(
                 id=_finding_id(rule_id, word.start, word.end),
                 category=category,
-                title=f"Filler sound: “{key}”",
+                title=f"Possible filler sound: “{key}”" if unsure else f"Filler sound: “{key}”",
                 start=word.start,
                 end=word.end,
                 evidence=[_evidence("recogniser_word_probability", "probability", word.probability)],
                 comparison_method="The recognised word is in the list of hesitation sounds." + (" It is not in the transcript you supplied." if unscripted else ""),
                 rule=RuleUsed(rule_id=rule_id, description="Flag recognised words that are non-lexical hesitation sounds.", thresholds=thresholds),
-                evidence_quality=_quality("moderate", category, quality),
-                explanation=f"The recogniser heard “{word.word}” here.",
+                evidence_quality="low" if unsure else _quality("moderate", category, quality),
+                explanation=f"The recogniser heard “{word.word}” here."
+                + (f" It was not confident (probability {word.probability:.2f})." if unsure else ""),
                 limitations=[
                     "This relies on the speech recogniser, which can mishear a short word as a filler or the reverse.",
                     "No severity is given: one filler is not a measure of how much they affect a delivery.",
@@ -644,7 +769,11 @@ def filler_words(participant: DeliveryAnalysis, quality: SignalQuality, settings
             category=category,
             status="triggered" if findings else "not_triggered",
             findings=len(findings),
-            measured={"recognised_words": len(transcription.words), "fillers": len(findings)},
+            measured={
+                "recognised_words": len(transcription.words),
+                "fillers": len(findings),
+                "fillers_per_minute": _round(len(findings) / transcription.duration_sec * 60, 1) if transcription.duration_sec > 0 else None,
+            },
             thresholds=thresholds,
             reason="" if findings else "None were recognised. Speech recognisers often leave fillers out, so this is not evidence that there were none.",
         ),
@@ -787,6 +916,7 @@ def run_detection(
         reason = "The recording is not usable: " + next(issue.message for issue in quality.issues if issue.level == "blocking")
         for rule_id, category in (
             ("pace", "rushed_delivery"), ("pace", "slow_delivery"), ("pause", "excessive_pause"),
+            ("pause_placement_vs_reference", "irregular_pauses"),
             ("filler_lexicon", "filler_word"), ("pacing_vs_reference", "uneven_pacing"), ("pitch_range", "pitch_monotony"),
         ):  # fmt: skip
             reports.append(_withheld(rule_id, category, reason))
@@ -795,10 +925,19 @@ def run_detection(
         if compared:
             add(pace_against_reference(participant.features, reference.features, pairs, quality, settings))
             add(pauses_against_reference(participant.features, reference.features, pairs, quality, settings))
+            add(pause_placement(participant.features, reference.features, pairs, quality, settings))
             add(uneven_pacing(participant.features, reference.features, pairs, quality, settings))
+            _downgrade_for_thin_comparison(findings, alignment, settings)
         else:
             add(pace_without_reference(participant, quality, settings))
             add(pauses_without_reference(participant.features, quality, settings))
+            placement = (
+                "Needs a reference recording: where pauses belong depends on the text, so there is no general rule for "
+                "how they should be spaced."
+            )
+            reports.append(
+                _withheld("pause_placement_vs_reference", "irregular_pauses", placement if reference is None else f"The reference could not be used. {alignment.reason}")
+            )
             why = "Needs a reference recording: without one, pace changes cannot be told apart from longer and shorter words."
             reports.append(_withheld("pacing_vs_reference", "uneven_pacing", why if reference is None else f"The reference could not be used. {alignment.reason}"))
         add(filler_words(participant, quality, settings))

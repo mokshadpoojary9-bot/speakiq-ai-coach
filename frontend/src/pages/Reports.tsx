@@ -1,5 +1,6 @@
 import { AnalysisGate } from '../components/AnalysisGate'
-import { DemoOnlyNotice } from '../components/SourceSwitch'
+import { RealReport } from '../components/RealReport'
+import { SourceSwitch, useSource } from '../components/SourceSwitch'
 import { btnSecondary, Card, DemoBadge, EvidenceKindBadge, PageHeader, SeverityBadge } from '../components/ui'
 import { formatInterval, formatPercent, formatTime } from '../lib/format'
 import { severityLabel } from '../lib/theme'
@@ -100,6 +101,9 @@ function ReportPreview({ analysis }: { analysis: AnalysisResult }) {
 }
 
 export default function Reports() {
+  const { source, session, setSource } = useSource()
+  const live = source === 'live' && session !== null
+
   return (
     <>
       <div className="print:hidden">
@@ -112,11 +116,9 @@ export default function Reports() {
             Print or save as PDF
           </button>
         </PageHeader>
+        <SourceSwitch source={source} hasSession={session !== null} onChange={setSource} />
       </div>
-      <div className="print:hidden">
-        <DemoOnlyNotice feature="report generation" />
-      </div>
-      <AnalysisGate>{(analysis) => <ReportPreview analysis={analysis} />}</AnalysisGate>
+      {live ? <RealReport session={session} /> : <AnalysisGate>{(analysis) => <ReportPreview analysis={analysis} />}</AnalysisGate>}
     </>
   )
 }

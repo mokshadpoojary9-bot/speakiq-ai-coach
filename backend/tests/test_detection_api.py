@@ -105,8 +105,10 @@ def test_a_rushed_take_against_a_reference_returns_a_measured_finding():
     assert body["alignment_status"]["words_compared"] == WORDS
     assert body["transcripts"]["shared_for_comparison"] == {
         "source": "machine_generated",
+        "review_status": "not_reviewed",
         "human_verified": False,
         "text": REFERENCE.text,
+        "origin": "reference_recognition",
     }
     assert body["reference"]["filename"] == "reference.wav"
     assert body["reference"]["signal_quality"]["usable"] is True
@@ -174,7 +176,7 @@ def test_transcription_being_unavailable_gives_a_partial_result_with_acoustic_fi
 
     assert body["status"] == "partial"
     assert body["components"]["transcription"]["code"] == "missing_dependency"
-    assert body["transcripts"]["participant"] == {"source": "none", "human_verified": False, "text": None}
+    assert body["transcripts"]["participant"] == {"source": "none", "review_status": "not_reviewed", "human_verified": False, "text": None}
     assert [f["category"] for f in body["findings"]] == ["excessive_pause"]  # measured from the audio alone
     assert rule(body, "filler_word")["status"] == "withheld"
     assert rule(body, "rushed_delivery")["status"] == "withheld"
@@ -274,10 +276,12 @@ def test_no_new_route_was_added_and_the_models_are_typed_in_openapi():
 
     assert set(schema["paths"]) == {"/api/health", "/api/features", "/api/transcribe", "/api/align", "/api/analyze", "/api/compare"}
     form = schema["components"]["schemas"]["Body_analyze_api_analyze_post"]["properties"]
-    assert set(form) == {"file", "reference", "transcript", "reference_transcript", "language"}
+    assert set(form) == {
+        "file", "reference", "transcript", "reference_transcript", "transcript_reviewed", "reference_transcript_reviewed", "language",
+    }  # fmt: skip
     assert schema["components"]["schemas"]["Body_analyze_api_analyze_post"]["required"] == ["file"]
     models = schema["components"]["schemas"]
-    for name in ("AnalyzeResponse", "Finding", "Evidence", "RuleReport", "SignalQuality", "QualityIssue", "AlignmentStatus", "DetectionSettings", "TranscriptInfo"):
+    for name in ("AnalyzeResponse", "Finding", "Evidence", "RuleReport", "SignalQuality", "QualityIssue", "AlignmentStatus", "DetectionSettings", "TranscriptInfo", "SharedTranscript", "CoachingTip"):
         assert name in models, name
     assert models["Finding"]["properties"]["severity"]["anyOf"][0]["enum"] == ["minor", "moderate", "major"]
     assert models["AnalyzeResponse"]["properties"]["status"]["enum"] == ["completed", "completed_no_findings", "partial"]
@@ -289,12 +293,93 @@ def test_response_shape_is_stable_for_the_frontend():
 
     assert set(body) == {
         "is_demo", "status", "components", "signal_quality", "features", "transcription", "alignment", "transcripts",
-        "reference", "alignment_status", "comparison", "findings", "rules", "settings", "limitations",
+        "reference", "alignment_status", "comparison", "findings", "rules", "coaching", "settings", "limitations",
     }  # fmt: skip
     assert set(body["findings"][0]) == {
         "id", "category", "title", "start", "end", "reference_interval", "evidence", "comparison_method", "rule",
         "evidence_quality", "severity", "severity_basis", "explanation", "limitations",
     }  # fmt: skip
     assert {r["category"] for r in body["rules"]} == {
-        "rushed_delivery", "slow_delivery", "excessive_pause", "uneven_pacing", "filler_word", "pitch_monotony", "unclear_articulation",
+        "rushed_delivery", "slow_delivery", "excessive_pause", "irregular_pauses", "uneven_pacing", "filler_word", "pitch_monotony",
+        "unclear_articulation",
     }  # fmt: skip
+
+
+# --- Transcript provenance and review status (limitations fix) -------------------------------
+
+
+def test_each_recordings_own_transcript_is_reported_separately_from_the_shared_one():
+    """Without supplied text, both recordings are aligned to the reference's recognised words. The participant's
+    own entry must still be what was recognised in the participant recording, not the reference's text."""
+    model = scripted()
+    heard = list(RUSHED.words)
+    heard[5] = "misheard"
+    model.spoken[len(RUSHED.audio)] = heard
+    transcripts = analyze(RUSHED, REFERENCE, api=client_with(model)).json()["transcripts"]
+
+    assert transcripts["participant"]["source"] == "machine_generated"
+    assert "misheard" in transcripts["participant"]["text"]
+    assert "misheard" not in transcripts["shared_for_comparison"]["text"]
+    assert transcripts["shared_for_comparison"]["origin"] == "reference_recognition"
+    assert transcripts["reference"]["text"] == REFERENCE.text
+
+
+def test_a_users_statement_that_they_checked_the_transcript_is_recorded_as_an_attestation_not_verification():
+    plain = analyze(RUSHED, REFERENCE, transcript=REFERENCE.text).json()["transcripts"]
+    attested = analyze(RUSHED, REFERENCE, transcript=REFERENCE.text, transcript_reviewed="true").json()["transcripts"]
+
+    assert plain["participant"]["review_status"] == "not_reviewed"
+    assert attested["participant"]["review_status"] == "user_attested"
+    assert attested["participant"]["human_verified"] is False
+    assert attested["shared_for_comparison"] | {"text": ""} == {
+        "source": "user_provided",
+        "review_status": "user_attested",
+        "human_verified": False,
+        "text": "",
+        "origin": "participant_transcript",
+    }
+    # The reference's own text was recognised by the model, so nothing the user said applies to it.
+    assert (attested["reference"]["source"], attested["reference"]["review_status"]) == ("machine_generated", "not_reviewed")
+
+
+def test_machine_generated_text_can_never_be_marked_reviewed():
+    transcripts = analyze(RUSHED, REFERENCE, transcript_reviewed="true", reference_transcript_reviewed="true").json()["transcripts"]
+
+    for info in transcripts.values():
+        assert (info["source"], info["review_status"]) == ("machine_generated", "not_reviewed")
+
+
+def test_a_reviewed_reference_transcript_is_the_shared_text_and_keeps_its_own_status():
+    transcripts = analyze(RUSHED, REFERENCE, reference_transcript=REFERENCE.text, reference_transcript_reviewed="true").json()["transcripts"]
+
+    assert (transcripts["reference"]["source"], transcripts["reference"]["review_status"]) == ("user_provided", "user_attested")
+    assert (transcripts["shared_for_comparison"]["origin"], transcripts["shared_for_comparison"]["review_status"]) == ("reference_transcript", "user_attested")
+    assert (transcripts["participant"]["source"], transcripts["participant"]["review_status"]) == ("machine_generated", "not_reviewed")
+
+
+# --- Coaching from real findings (limitations fix) -------------------------------------------
+
+
+def test_coaching_is_built_only_from_the_findings_that_were_reported():
+    body = analyze(RUSHED, REFERENCE).json()
+
+    (tip,) = body["coaching"]
+    (finding,) = [f for f in body["findings"] if f["category"] == "rushed_delivery"]
+    assert tip["id"] == "tip:pace_vs_reference:rushed_delivery"
+    assert tip["finding_ids"] == [finding["id"]]
+    assert tip["based_on"] == finding["explanation"]
+    assert (tip["action"], tip["source"], tip["caution"]) == ("Slow down across this passage.", "rule_based", None)
+
+
+def test_no_findings_means_no_coaching():
+    assert analyze(SAME, REFERENCE).json()["coaching"] == []
+    assert analyze(encode(silence(8.0))).json()["coaching"] == []
+
+
+def test_coaching_on_a_clipped_recording_carries_a_caution():
+    body = analyze(encode(np.clip(RUSHED.audio * 8, -1, 1)), REFERENCE).json()
+
+    assert body["coaching"]
+    assert all("evidence behind this is weak" in tip["caution"] for tip in body["coaching"])
+    reported = {f["id"] for f in body["findings"]}
+    assert all(set(tip["finding_ids"]) <= reported for tip in body["coaching"])
