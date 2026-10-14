@@ -1,4 +1,4 @@
-import type { TranscriptInfo } from '../lib/api'
+import type { ClarityEstimate, ClarityValues, TranscriptInfo } from '../lib/api'
 import { formatTime, validInterval } from '../lib/format'
 import type { AnalysisSession } from '../lib/session'
 import { categoryLabel } from './FindingsPanel'
@@ -38,6 +38,57 @@ function usedTranscript(result: AnalysisSession['result']): TranscriptInfo | nul
 }
 
 /** A printable report of one real analysis: only what the backend measured, found and withheld. */
+const clarityRows: { label: string; value: (v: ClarityValues) => string }[] = [
+  {
+    label: 'Articulation rate (syllables per second, pauses excluded)',
+    value: (v) => (v.articulation_rate_syll_per_sec === null ? 'not measured' : v.articulation_rate_syll_per_sec.toFixed(2)),
+  },
+  {
+    label: 'Mean recogniser word confidence (0 to 1)',
+    value: (v) => (v.mean_word_confidence === null ? 'no recognised words' : v.mean_word_confidence.toFixed(2)),
+  },
+  {
+    label: 'Words below 0.5 confidence',
+    value: (v) => (v.low_confidence_word_share === null ? 'no recognised words' : `${Math.round(v.low_confidence_word_share * 100)}% of ${v.words}`),
+  },
+]
+
+function ClaritySection({ clarity }: { clarity: ClarityEstimate | null | undefined }) {
+  return (
+    <section aria-labelledby="real-report-clarity" className="border-b border-line py-5">
+      <h3 id="real-report-clarity" className="text-xs font-semibold tracking-widest text-muted uppercase">
+        Clarity estimate
+      </h3>
+      {!clarity || clarity.status === 'unavailable' ? (
+        <p className="mt-3 text-sm text-muted">Not available for this analysis.</p>
+      ) : (
+        <>
+          <p className="mt-2 text-xs text-warn">Estimate only, not a finding: accent, voice, microphone and recogniser errors all affect it.</p>
+          <table className="mt-3 w-full text-left text-sm">
+            <thead className="text-xs text-muted">
+              <tr>
+                <th scope="col" className="py-1 font-medium">Measure</th>
+                <th scope="col" className="py-1 font-medium">This recording</th>
+                {clarity.reference && <th scope="col" className="py-1 font-medium">Reference</th>}
+              </tr>
+            </thead>
+            <tbody>
+              {clarityRows.map((row) => (
+                <tr key={row.label} className="border-t border-line">
+                  <th scope="row" className="py-1.5 pr-3 font-normal">{row.label}</th>
+                  <td className="py-1.5 font-mono">{row.value(clarity.participant)}</td>
+                  {clarity.reference && <td className="py-1.5 font-mono">{row.value(clarity.reference)}</td>}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          <p className="mt-3 text-xs text-muted">{clarity.method}</p>
+        </>
+      )}
+    </section>
+  )
+}
+
 export function RealReport({ session }: { session: AnalysisSession }) {
   const { result, analysedAt } = session
   const { features, findings, rules } = result
@@ -135,6 +186,8 @@ export function RealReport({ session }: { session: AnalysisSession }) {
         )}
         <p className="mt-3 text-xs text-muted">Rule-based wording; no language model was used.</p>
       </section>
+
+      <ClaritySection clarity={result.clarity} />
 
       {withheld.length > 0 && (
         <section aria-labelledby="real-report-withheld" className="border-b border-line py-5">

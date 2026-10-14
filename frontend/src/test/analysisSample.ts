@@ -102,6 +102,13 @@ export function sampleAnalysis(): AnalyzeResponse {
         source: 'rule_based',
       },
     ],
+    clarity: {
+      status: 'estimated',
+      participant: { articulation_rate_syll_per_sec: 4.12, mean_word_confidence: 0.83, low_confidence_word_share: 0.167, words: 6 },
+      reference: { articulation_rate_syll_per_sec: 3.6, mean_word_confidence: 0.9, low_confidence_word_share: 0, words: 6 },
+      method: 'Articulation rate is the number of syllable nuclei divided by the speaking time with pauses removed.',
+      limitations: ['This is an estimate, not a measure of how clearly someone speaks.'],
+    },
     rules: [
       checked('pace_vs_reference', 'rushed_delivery'),
       checked('pace_vs_reference', 'slow_delivery'),
@@ -110,7 +117,7 @@ export function sampleAnalysis(): AnalyzeResponse {
       checked('pacing_vs_reference', 'uneven_pacing', 'withheld', 'Needs at least 3 runs of 5 consecutive aligned words; found 1.'),
       checked('filler_lexicon', 'filler_word', 'not_triggered', 'None were recognised. Speech recognisers often leave fillers out.'),
       checked('pitch_range_vs_reference', 'pitch_monotony'),
-      checked('articulation', 'unclear_articulation', 'not_supported', 'No defensible measurement is available.'),
+      checked('articulation', 'unclear_articulation', 'not_supported', 'No finding is made.'),
     ],
     features: {
       is_demo: false,

@@ -38,7 +38,7 @@ Not run anywhere: deployment to Render or Vercel, a real Supabase project, Linux
 | Requirement | Status | Where |
 | --- | --- | --- |
 | Waveform and spectral features | Done | `backend/app/audio/features.py` |
-| MFCCs, F0 contour, speech rate, pauses, energy, clarity proxies | Done except clarity | Clarity is deliberately not measured: no measure was found that would not penalise accent, voice or microphone |
+| MFCCs, F0 contour, speech rate, pauses, energy, clarity proxies | Done, clarity as an estimate | Articulation rate and recogniser word confidence are reported and shown labelled as an estimate (`backend/app/detection/clarity.py`); they never produce a finding, because accent, voice and microphone affect them too |
 | Forced alignment of transcript words | Partial | Transcript-to-recognition alignment using Whisper word timestamps, not phoneme-level acoustic forced alignment. Documented in the README |
 | Careful speaker normalisation | Done | Pitch in semitones relative to each speaker; speaker-adapted pitch range with a stability check |
 | Never claim an unmeasured metric | Done | Every metric reports `measured`, `estimated` or `unavailable` |

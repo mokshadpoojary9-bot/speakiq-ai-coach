@@ -11,6 +11,7 @@ from .audio import SUPPORTED_EXTENSIONS, AudioError, AudioFeatures, LoadedAudio,
 from .comparison import ComparisonResult, DeliveryAnalysis, compare_deliveries
 from .config import Settings, get_settings
 from .persistence import AnalysisArchive, PersistenceError, make_store
+from .detection.clarity import ClarityEstimate, clarity_values, estimate_clarity
 from .detection.coaching import CoachingTip, build_coaching
 from .detection import AlignmentStatus, DetectionSettings, Finding, RuleReport, SignalQuality, run_detection
 from .speech import (
@@ -149,6 +150,9 @@ class AnalyzeResponse(BaseModel):
     findings: list[Finding]
     rules: list[RuleReport]
     coaching: list[CoachingTip] = Field(description="Rule-based tips, one per kind of finding. Empty when there are no findings.")
+    clarity: ClarityEstimate | None = Field(
+        default=None, description="Articulation rate and recogniser word confidence, as an estimate for information. Never a finding."
+    )
     settings: DetectionSettings
     limitations: list[str]
 
@@ -468,6 +472,10 @@ def create_app(
             findings=detection.findings,
             rules=detection.rules,
             coaching=build_coaching(detection.findings),
+            clarity=estimate_clarity(
+                clarity_values(feature_result, transcription),
+                clarity_values(reference_analysis.features, reference_analysis.transcription) if reference_analysis else None,
+            ),
             settings=detection_settings,
             limitations=limitations,
         )

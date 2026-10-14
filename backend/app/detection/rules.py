@@ -1013,8 +1013,9 @@ def pitch_monotony(
 
 
 ARTICULATION_REASON = (
-    "No defensible measurement is available. Recognition errors and spectral measures both depend on accent, "
-    "voice and microphone, so using them would penalise who is speaking rather than how clearly."
+    "No finding is made. Recognition confidence and spectral measures both depend on accent, voice and microphone, "
+    "so judging by them would penalise who is speaking rather than how clearly. The report shows them as a clarity "
+    "estimate, for information only."
 )
 
 

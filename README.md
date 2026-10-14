@@ -20,7 +20,7 @@ The full specification lives in [`docs/PROJECT_SPEC.yaml`](docs/PROJECT_SPEC.yam
 | Dashboard and Acoustic Twin for your recording | Working with real backend results; switchable to the demo fixture |
 | Demo dashboard, coaching and report content | **Demo fixture** (`frontend/src/fixtures/demoAnalysis.ts`), not computed from audio. Shown before you analyse a recording, or when you switch to it |
 | Contrastive demonstration dataset: 3 real recordings, 84 transformed variants (filler sounds synthetic), schema, validator, review tool, dataset card | Built and validated (see [Dataset](#dataset)) |
-| Articulation or clarity findings | Deliberately not supported: no measurement was found that would not penalise accent, voice or microphone |
+| Clarity estimate: articulation rate (syllables per second, pauses excluded) and recogniser word confidence, for the recording and the reference (`clarity` in `POST /api/analyze`) | Shown in the report, labelled as an estimate. Never turned into a finding: both numbers also depend on accent, voice, microphone and the recogniser |
 | Free-form coaching questions, language-model coaching | Not implemented |
 | Dataset publication | Not published; export and upload guide in `data/HOSTING.md` |
 | Optional saving of analysis results to Supabase | Implemented; off until you configure it. See [Saving analyses](#saving-analyses-optional) |
@@ -229,7 +229,7 @@ Send the participant recording as `file`. Optionally add a `reference` recording
 | Uneven pacing | Pace per run of about 5 words, relative to the speaker's overall pace, varies by 1.5x or more; stretches off by 25% are reported | Withheld | None |
 | Filler words | Two checks. (1) Recognised hesitation sounds (um, uh, er, erm, hmm, mm, including drawn-out spellings) at their word times; below 0.5 recogniser probability they are "possible" with low evidence quality. (2) An acoustic check for fillers the recogniser left out: a voiced sound of at least 0.2 s with pitch within ±1 semitone and spectral centroid within ±20% of its median, at least 0.15 s of it outside every recognised word, reported as a "possible filled pause" with low evidence quality. Counts are still a lower bound: short or breathy fillers are missed, and a held vowel can look like a filler | Same | None |
 | Pitch variation ("possibly narrow") | Pitch range over voiced frames, in semitones around each speaker's own median, at most 70% of the reference's | Range below 4 semitones | None |
-| Articulation / clarity | Not supported | Not supported | — |
+| Articulation / clarity | No finding. The `clarity` estimate gives articulation rate, mean word confidence and the share of words below 0.5 confidence, side by side with the reference | Same, without the reference column | None |
 
 Every finding carries a stable `id`, the interval in the participant audio, the measured `evidence` with units and reference values, the `comparison_method`, the `rule` and thresholds, an `evidence_quality`, an `explanation` and its `limitations`.
 
@@ -254,7 +254,7 @@ Every finding carries a stable `id`, the interval in the participant audio, the 
 | Pitch monotony | 2 of 3 | 1 of 3 | 2 of 3 | 0 of 3 |
 | Unclear articulation (no rule) | 0 of 3 | 0 of 3 | 0 of 3 | 0 of 3 |
 
-In total the labelled flaw was reported for 45 of 54 mild-to-severe samples (38 of the 45 that are not filler samples, as before the filler samples were added), and nothing was reported for the 3 references or the 12 unclear-articulation samples. Severity bands followed the dataset's tiers for pace (minor, moderate, major) and pauses. Twelve findings were of a category other than the label: four "slow delivery" on uneven-pacing samples and five on filler samples, whose transforms do make them longer overall; one pause on a slowed sample; one uneven pacing on a filler sample; and one possible filled pause on a time-stretched uneven-pacing sample. Pitch findings were withheld for 26 samples because tracking was flagged unreliable, almost all from the low-voiced speaker.
+In total the labelled flaw was reported for 45 of 54 mild-to-severe samples (38 of the 45 that are not filler samples, as before the filler samples were added), and nothing was reported for the 3 references or the 12 unclear-articulation samples. The clarity estimate does move with the unclear-articulation transform (a 1 kHz low-pass filter): mean word confidence was 0.86 to 0.89 on the references and 0.63 to 0.82 on the severe samples, and articulation rate followed the rushed and slowed tiers (1.9 to 4.7 syllables per second). It is still shown only as an estimate, because voice and microphone move it too. Severity bands followed the dataset's tiers for pace (minor, moderate, major) and pauses. Twelve findings were of a category other than the label: four "slow delivery" on uneven-pacing samples and five on filler samples, whose transforms do make them longer overall; one pause on a slowed sample; one uneven pacing on a filler sample; and one possible filled pause on a time-stretched uneven-pacing sample. Pitch findings were withheld for 26 samples because tracking was flagged unreliable, almost all from the low-voiced speaker.
 
 Two further checks were run once on the development machine:
 

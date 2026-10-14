@@ -247,6 +247,22 @@ export interface CoachingTip {
   source: string
 }
 
+export interface ClarityValues {
+  articulation_rate_syll_per_sec: number | null
+  mean_word_confidence: number | null
+  low_confidence_word_share: number | null
+  words: number
+}
+
+/** Shown for information only; never a finding. */
+export interface ClarityEstimate {
+  status: 'estimated' | 'unavailable'
+  participant: ClarityValues
+  reference: ClarityValues | null
+  method: string
+  limitations: string[]
+}
+
 export interface AnalyzeResponse {
   is_demo: false
   /** completed: findings. completed_no_findings: checked, nothing over threshold. partial: something could not run. */
@@ -263,6 +279,8 @@ export interface AnalyzeResponse {
   rules: RuleReport[]
   /** Absent in responses from backends older than rule-based coaching. */
   coaching?: CoachingTip[]
+  /** Absent in responses from backends older than the clarity estimate. */
+  clarity?: ClarityEstimate | null
   /** The thresholds the backend used. Only the ones the interface reads are typed. */
   settings?: { high_quality_compared_fraction?: number }
   limitations: string[]

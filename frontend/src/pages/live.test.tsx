@@ -488,7 +488,7 @@ describe('Evidence Coach with a real analysis', () => {
     const missing = within(screen.getByRole('list', { name: 'Not assessed' })).getAllByRole('listitem')
     expect(missing.map((m) => m.textContent)).toEqual([
       'Uneven pacing · not measurable here: Needs at least 3 runs of 5 consecutive aligned words; found 1.',
-      'Articulation · not supported: No defensible measurement is available.',
+      'Articulation · not supported: No finding is made.',
     ])
     expect(screen.getByText(/That is not a sign that they are fine/)).toBeInTheDocument()
   })
@@ -576,8 +576,35 @@ describe('Reports with a real analysis', () => {
     expect(suggestions).toHaveTextContent('Rule-based wording; no language model was used.')
     const notChecked = within(report).getByRole('region', { name: 'Not checked' })
     expect(notChecked).toHaveTextContent('Uneven pacing: Needs at least 3 runs')
-    expect(notChecked).toHaveTextContent('Articulation: No defensible measurement is available.')
+    expect(notChecked).toHaveTextContent('Articulation: No finding is made.')
     expect(within(report).queryByText(/Demo data — not a real analysis/)).not.toBeInTheDocument()
+  })
+
+  it('shows the clarity estimate for both recordings, labelled as an estimate and not a finding', () => {
+    renderWith(<Reports />, sampleAnalysis())
+
+    const clarity = within(screen.getByRole('article', { name: 'Speech delivery report' })).getByRole('region', { name: 'Clarity estimate' })
+    expect(clarity).toHaveTextContent('Estimate only, not a finding')
+    const rate = within(clarity).getByRole('row', { name: /Articulation rate/ })
+    expect(within(rate).getAllByRole('cell').map((cell) => cell.textContent)).toEqual(['4.12', '3.60'])
+    const low = within(clarity).getByRole('row', { name: /Words below 0.5 confidence/ })
+    expect(within(low).getAllByRole('cell').map((cell) => cell.textContent)).toEqual(['17% of 6', '0% of 6'])
+    expect(within(clarity).getByRole('row', { name: /Mean recogniser word confidence/ })).toHaveTextContent('0.83')
+  })
+
+  it('says the clarity estimate is unavailable instead of showing zeros, including for older results', () => {
+    const older = sampleAnalysis()
+    delete older.clarity
+    const view = renderWith(<Reports />, older)
+    expect(screen.getByRole('region', { name: 'Clarity estimate' })).toHaveTextContent('Not available for this analysis.')
+    view.unmount()
+
+    const alone = sampleAnalysis()
+    alone.clarity = { ...alone.clarity!, reference: null, participant: { ...alone.clarity!.participant, mean_word_confidence: null, low_confidence_word_share: null, words: 0 } }
+    renderWith(<Reports />, alone)
+    const clarity = screen.getByRole('region', { name: 'Clarity estimate' })
+    expect(within(clarity).queryByRole('columnheader', { name: 'Reference' })).not.toBeInTheDocument()
+    expect(within(clarity).getByRole('row', { name: /Mean recogniser word confidence/ })).toHaveTextContent('no recognised words')
   })
 
   it('does not present an empty or partial result as a clean bill of health', () => {

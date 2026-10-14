@@ -298,7 +298,7 @@ def test_response_shape_is_stable_for_the_frontend():
 
     assert set(body) == {
         "is_demo", "status", "components", "signal_quality", "features", "transcription", "alignment", "transcripts",
-        "reference", "alignment_status", "comparison", "findings", "rules", "coaching", "settings", "limitations",
+        "reference", "alignment_status", "comparison", "findings", "rules", "coaching", "clarity", "settings", "limitations",
     }  # fmt: skip
     assert set(body["findings"][0]) == {
         "id", "category", "title", "start", "end", "reference_interval", "evidence", "comparison_method", "rule",
