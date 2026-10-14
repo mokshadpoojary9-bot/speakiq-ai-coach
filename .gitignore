@@ -190,3 +190,6 @@ data/speakiq-contrastive-v1/audio/
 
 # Dataset export staging area and archives (created by `python -m app.dataset export`)
 data/export/
+
+# Transcription model downloaded at build time on hosts (WHISPER_DOWNLOAD_ROOT=models)
+backend/models/
