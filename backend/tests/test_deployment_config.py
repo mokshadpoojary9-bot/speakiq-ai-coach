@@ -54,9 +54,19 @@ def test_every_variable_the_blueprint_sets_is_one_the_backend_reads():
 
 def test_the_model_downloaded_at_build_time_is_where_the_service_looks_for_it():
     assert ENV["WHISPER_DOWNLOAD_ROOT"]["value"] == "models"
-    assert ENV["WHISPER_MODEL"]["value"] == "base"
     ignored = (REPO / ".gitignore").read_text(encoding="utf-8")
     assert "backend/models/" in ignored
+
+
+
+def test_the_blueprint_fits_the_free_instances_memory():
+    """Measured peaks (docs/DEPLOYMENT.md): `base` exceeds 512 MB even on short recordings; `tiny` stays
+    under it up to about 90 s. The blueprint must not drift back to a setting that was measured not to fit."""
+    assert SERVICE["plan"] == "free"
+    assert ENV["WHISPER_MODEL"]["value"] == "tiny"
+    assert int(ENV["MAX_AUDIO_SECONDS"]["value"]) <= 60
+    guide = (REPO / "docs" / "DEPLOYMENT.md").read_text(encoding="utf-8")
+    assert "512 MB" in guide and "| `tiny` | 464 MB | 471 MB |" in guide
 
 
 def test_vercel_serves_the_single_page_app_for_every_route():

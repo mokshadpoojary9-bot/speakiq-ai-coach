@@ -5,6 +5,9 @@ services:
   - type: web
     name: speakiq-ai-coach-api
     runtime: python
+    # Render's free instance has 512 MB of RAM. The model and duration limit below are chosen to fit it;
+    # see docs/DEPLOYMENT.md for the measurements and for the settings to use on a larger instance.
+    plan: free
     rootDir: backend
     # Download the transcription model during the build, into the service's own folder, so the
     # first analysis after a deploy does not have to fetch it.
@@ -17,7 +20,7 @@ services:
       - key: APP_ENV
         value: production
       - key: WHISPER_MODEL
-        value: base
+        value: tiny
       - key: WHISPER_DEVICE
         value: cpu
       - key: WHISPER_COMPUTE_TYPE
@@ -27,7 +30,7 @@ services:
       - key: MAX_UPLOAD_MB
         value: "25"
       - key: MAX_AUDIO_SECONDS
-        value: "300"
+        value: "60"
       # The deployed frontend's address, for example https://your-app.vercel.app
       - key: BACKEND_CORS_ORIGINS
         sync: false

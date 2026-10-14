@@ -15,6 +15,7 @@ N_FFT = 512
 WINDOW = "hann"
 N_MFCC = 13
 N_MELS = 40
+SPECTRAL_BLOCK_FRAMES = 2000  # 20 s of frames per block
 MAX_SERIES_POINTS = 3000
 WAVEFORM_BUCKETS = 1000
 # Below this level the whole recording is treated as containing no usable speech signal.
@@ -174,10 +175,14 @@ def spectral(samples: np.ndarray, frames: Frames) -> Spectral:
         librosa.stft(samples, n_fft=N_FFT, hop_length=frames.hop_length, win_length=frames.frame_length, window=WINDOW)
     )
     sr = frames.sample_rate
-    centroid = librosa.feature.spectral_centroid(S=magnitude, sr=sr)[0]
-    bandwidth = librosa.feature.spectral_bandwidth(S=magnitude, sr=sr)[0]
-    rolloff = librosa.feature.spectral_rolloff(S=magnitude, sr=sr, roll_percent=0.85)[0]
-    flatness = librosa.feature.spectral_flatness(S=magnitude)[0]
+    # Every measure here is computed frame by frame, so working through blocks of frames gives the same
+    # numbers while keeping librosa's full-size intermediate arrays small (memory on small instances).
+    blocks = [magnitude[:, i : i + SPECTRAL_BLOCK_FRAMES] for i in range(0, magnitude.shape[1], SPECTRAL_BLOCK_FRAMES)]
+    centroid = np.concatenate([librosa.feature.spectral_centroid(S=block, sr=sr)[0] for block in blocks])
+    bandwidth = np.concatenate([librosa.feature.spectral_bandwidth(S=block, sr=sr)[0] for block in blocks])
+    rolloff = np.concatenate([librosa.feature.spectral_rolloff(S=block, sr=sr, roll_percent=0.85)[0] for block in blocks])
+    flatness = np.concatenate([librosa.feature.spectral_flatness(S=block)[0] for block in blocks])
+    del magnitude, blocks
     zcr = librosa.feature.zero_crossing_rate(samples, frame_length=frames.frame_length, hop_length=frames.hop_length)[0]
 
     active = frames.active

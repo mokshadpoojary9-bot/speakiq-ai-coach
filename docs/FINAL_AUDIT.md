@@ -8,15 +8,17 @@ This audit checks the repository against `docs/PROJECT_SPEC.yaml`. Every result 
 
 | Check | Command | Result |
 | --- | --- | --- |
-| Backend tests, Python 3.14 | `pytest` in `backend/` | 435 passed |
-| Backend tests, Python 3.13 (fresh environment from `requirements-dev.txt`) | same | 435 passed |
-| Frontend unit and component tests | `npm test` | 104 passed |
+| Backend tests, Python 3.14 | `pytest` in `backend/` | 460 passed |
+| Backend tests, Python 3.13 (fresh environment from `requirements-dev.txt`) | same | 460 passed |
+| Frontend unit and component tests | `npm test` | 106 passed |
 | Frontend production build | `npm run build` | succeeded |
 | Browser end-to-end tests (Microsoft Edge) | `npm run test:e2e` | 7 passed |
 | Full dataset, manifest and audio | `python -m app.dataset validate ../data/speakiq-contrastive-v1` | 0 errors, 0 warnings |
 | Committed example set | `python -m app.dataset validate ../data/examples` | 0 errors, 0 warnings |
-| Dataset rebuild reproduces committed manifests | `python -m app.dataset check` | passed during Prompt 8 and Prompt 9 verification |
+| Dataset rebuild reproduces committed manifests | `python -m app.dataset check` | passed after the dataset 1.1.0 rebuild |
 | Detection rules on the dataset (real `base` model) | `python -m app.detection.evaluate` | labelled flaw reported for 45 of 54 mild-to-severe samples (38 of the 45 non-filler ones, unchanged); 12 findings of another category; 16 of 24 inserted synthetic fillers found (1 before the acoustic check) |
+| Pitch tracking reliability | `python -m app.audio.evaluate_pitch` | 24 of 87 recordings withheld, 0 false readings among those reported |
+| Peak memory of one analysis (`tiny`, 60 s recording and reference) | measured on the development machine | 471 MB (Windows working set) |
 | Transcript review status | `python -m app.dataset transcripts status` | all 3 sources `unverified` |
 
 Not run anywhere: deployment to Render or Vercel, a real Supabase project, Linux or macOS, and any test with listeners or natural flawed speech.
@@ -111,7 +113,7 @@ Not in the repository, and not produced by this work: a hosted demo, a published
 - Word timing comes from speech recognition, accurate to about a tenth of a second; misrecognised words drop out of comparisons.
 - Without a reference recording, pace and pauses are judged against general limits, and uneven pacing and pause placement are not judged at all.
 - Dataset transcripts are unverified machine output until a person runs `python -m app.dataset transcripts review`; one source description is uncertain; the filler examples are synthetic sounds, not natural hesitations.
-- Memory needs on small hosting instances are untested.
+- Memory was measured on the development machine, not on Render: with `tiny` an analysis of a 60-second recording and reference peaked at 471 MB, so the blueprint uses `tiny` and a 60-second limit for the 512 MB free instance, with about 40 MB of headroom.
 
 ## 5. Actions only the owner can take
 

@@ -24,7 +24,7 @@ The full specification lives in [`docs/PROJECT_SPEC.yaml`](docs/PROJECT_SPEC.yam
 | Free-form coaching questions, language-model coaching | Not implemented |
 | Dataset publication | Not published; export and upload guide in `data/HOSTING.md` |
 | Optional saving of analysis results to Supabase | Implemented; off until you configure it. See [Saving analyses](#saving-analyses-optional) |
-| Hosting (Render backend, Vercel frontend) | **Not deployed.** Configuration prepared in `render.yaml` and `frontend/vercel.json`; steps in [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md) |
+| Hosting (Render backend, Vercel frontend) | **Not deployed.** Configuration prepared in `render.yaml` (free 512 MB instance: `tiny` model, 60-second limit, from measured memory use) and `frontend/vercel.json`; steps in [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md) |
 
 Every frontend view that shows fixture data carries a "Demo data — not a real analysis" label, and views of your own recording carry a "Real analysis" label. A real analysis is kept in browser memory and is lost when the page is reloaded, unless you save it (optional, see [Saving analyses](#saving-analyses-optional)). No paid API keys are needed to run the project locally.
 

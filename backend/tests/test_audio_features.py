@@ -224,3 +224,51 @@ def test_load_audio_strips_directories_from_the_filename():
     audio = load_audio(encode(tone(200, 1.0)), "../../secret/talk.wav", max_duration_sec=10)
 
     assert audio.filename == "talk.wav"
+
+
+def test_spectral_measures_computed_in_blocks_equal_one_full_computation():
+    """Blocks keep memory low on long recordings; they must not change a single number."""
+    import librosa
+
+    from app.audio import features
+
+    rng = np.random.default_rng(3)
+    t = np.arange(int(47.3 * SR)) / SR  # several blocks and a partial last one
+    samples = (0.3 * np.sin(2 * np.pi * (200 + 150 * np.sin(t)) * t) + 0.05 * rng.standard_normal(len(t))).astype(np.float32)
+    frames = features.compute_frames(samples, SR)
+    assert len(frames.energy_db) > 2 * features.SPECTRAL_BLOCK_FRAMES
+
+    blocked = features.spectral(samples, frames)
+
+    magnitude = np.abs(librosa.stft(samples, n_fft=features.N_FFT, hop_length=frames.hop_length, win_length=frames.frame_length, window=features.WINDOW))
+    active = frames.active
+    whole = {
+        "mean_centroid_hz": librosa.feature.spectral_centroid(S=magnitude, sr=SR)[0],
+        "mean_bandwidth_hz": librosa.feature.spectral_bandwidth(S=magnitude, sr=SR)[0],
+        "mean_rolloff_hz": librosa.feature.spectral_rolloff(S=magnitude, sr=SR, roll_percent=0.85)[0],
+        "mean_flatness": librosa.feature.spectral_flatness(S=magnitude)[0],
+    }
+    for name, values in whole.items():
+        digits = 5 if name == "mean_flatness" else 1
+        assert getattr(blocked, name) == round(float(values[active].mean()), digits), name
+    centroid = np.where(active, whole["mean_centroid_hz"], np.nan)
+    assert blocked.centroid == features.to_series(centroid, unit="Hz", hop_sec=frames.hop_sec, digits=1)
+
+
+def test_spectral_measures_on_a_long_recording_stay_within_a_small_memory_budget():
+    """The free hosting instance has 512 MB. Full-length intermediate arrays for 300 s of audio
+    took about 236 MB here before the measures were computed in blocks."""
+    import tracemalloc
+
+    from app.audio import features
+
+    samples = (0.2 * np.sin(2 * np.pi * 180 * np.arange(300 * SR) / SR)).astype(np.float32)
+    frames = features.compute_frames(samples, SR)
+    features.spectral(samples[: 5 * SR], features.compute_frames(samples[: 5 * SR], SR))  # first-call setup outside the budget
+
+    tracemalloc.start()
+    features.spectral(samples, frames)
+    peak = tracemalloc.get_traced_memory()[1]
+    tracemalloc.stop()
+
+    assert peak < 120 * 2**20

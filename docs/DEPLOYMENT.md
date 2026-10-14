@@ -29,23 +29,30 @@ Environment variables (Render > the service > Environment):
 | --- | --- | --- |
 | `PYTHON_VERSION` | `3.13.7` | — |
 | `APP_ENV` | `production` | — |
-| `WHISPER_MODEL` | `base` | Larger models are more accurate but need more memory |
+| `WHISPER_MODEL` | `tiny` | Fits the free instance's 512 MB. Use `base` on an instance with at least 1 GB (see Memory below) |
 | `WHISPER_DEVICE` | `cpu` | — |
 | `WHISPER_COMPUTE_TYPE` | `int8` | — |
 | `WHISPER_DOWNLOAD_ROOT` | `models` | Keeps the model downloaded at build time inside the deployed service |
 | `MAX_UPLOAD_MB` | `25` | — |
-| `MAX_AUDIO_SECONDS` | `300` | — |
+| `MAX_AUDIO_SECONDS` | `60` | Longest recording accepted. Memory grows with length; raise it only on a larger instance |
 | `BACKEND_CORS_ORIGINS` | asks you | Your Vercel address, for example `https://your-app.vercel.app`. Without it the browser blocks every request |
 | `SUPABASE_URL` | asks you | Optional. Leave empty to keep saving off |
 | `SUPABASE_SERVICE_ROLE_KEY` | asks you | Optional secret. Leave empty to keep saving off |
-| `HF_TOKEN` | asks you | Optional secret. Not needed for `base` |
+| `HF_TOKEN` | asks you | Optional secret. Not needed for `tiny` or `base` |
 
-After the first deploy, open `https://<your-service>.onrender.com/api/health`. It should report `"status": "ok"`, `"model": "base"`, and whether saving is configured.
+After the first deploy, open `https://<your-service>.onrender.com/api/health`. It should report `"status": "ok"`, `"model": "tiny"`, and whether saving is configured.
 
 ### Things to check on Render
 
-- **Memory.** Speech recognition plus audio analysis needs roughly 1 GB of RAM in practice. Render's smallest instances may run out of memory on the first transcription; if requests fail or the service restarts, choose a larger instance or a smaller model (`WHISPER_MODEL=tiny`, less accurate).
-- **First request.** If the model was not downloaded at build time, the first analysis downloads about 145 MB and is slow.
+- **Memory.** The free instance has 512 MB of RAM. Peak memory of the backend process during one analysis of a recording plus a reference of the same length, measured on the development machine (Windows working set, which is close to, but not the same as, Linux resident memory):
+
+  | Model | 25 s | 60 s | 90 s | 120 s | 180 s | 300 s |
+  | --- | --- | --- | --- | --- | --- | --- |
+  | `tiny` | 464 MB | 471 MB | 482 MB | 515 MB | 578 MB | 704 MB |
+  | `base` | 560 MB | — | — | 583 MB | — | 752 MB |
+
+  About 130 MB of this is the libraries, and the rest is the model and the analysis, which grows with the recording's length. `base` does not fit in 512 MB even for short recordings, so the blueprint uses `tiny` with a 60-second limit, which peaked at 471 MB: about 40 MB of headroom. This was measured on Windows, not on Render; if the service restarts during an analysis, lower `MAX_AUDIO_SECONDS` further or move to a larger instance. On an instance with at least 1 GB, `WHISPER_MODEL=base` and `MAX_AUDIO_SECONDS=300` fit (752 MB peak at 300 s). `tiny` recognises words less accurately than `base`. On the demonstration dataset (`python -m app.detection.evaluate` with `WHISPER_MODEL=tiny`) it reported the labelled flaw for 48 of 54 mild-to-severe samples against 45 with `base`, and found all 24 inserted synthetic fillers against 16, but gave 14 findings of another category against 12, and could not use the reference for 2 strongly filtered samples.
+- **First request.** If the model was not downloaded at build time, the first analysis downloads it (about 75 MB for `tiny`, 145 MB for `base`) and is slow.
 - **Python version.** Development used Python 3.14 on Windows. The full backend test suite also passes on a fresh Python 3.13 install on Windows (see `docs/FINAL_AUDIT.md`), which matches `PYTHON_VERSION` in the blueprint. Linux has not been tested.
 - **Cold starts.** Free instances sleep when idle; the first request after a sleep takes longer.
 
