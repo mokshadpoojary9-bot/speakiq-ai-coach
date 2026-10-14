@@ -1,6 +1,6 @@
 from typing import Annotated, Literal
 
-from fastapi import APIRouter, FastAPI, File, Form, HTTPException, Request, UploadFile
+from fastapi import APIRouter, FastAPI, File, Form, Header, HTTPException, Request, UploadFile
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
@@ -10,6 +10,7 @@ from . import __version__
 from .audio import SUPPORTED_EXTENSIONS, AudioError, AudioFeatures, LoadedAudio, extract_features, load_audio
 from .comparison import ComparisonResult, DeliveryAnalysis, compare_deliveries
 from .config import Settings, get_settings
+from .persistence import AnalysisArchive, PersistenceError, make_store
 from .detection.coaching import CoachingTip, build_coaching
 from .detection import AlignmentStatus, DetectionSettings, Finding, RuleReport, SignalQuality, run_detection
 from .speech import (
@@ -63,6 +64,10 @@ class Limits(BaseModel):
     supported_extensions: list[str]
 
 
+class PersistenceStatus(BaseModel):
+    configured: bool = Field(description="Whether saving analyses is switched on. Never reveals the database URL or key.")
+
+
 class HealthResponse(BaseModel):
     status: Literal["ok"]
     service: str
@@ -70,6 +75,7 @@ class HealthResponse(BaseModel):
     environment: str
     limits: Limits
     transcription: TranscriptionEngineStatus
+    persistence: PersistenceStatus
 
 
 class ComponentStatus(BaseModel):
@@ -164,6 +170,18 @@ class CompareResponse(BaseModel):
     comparison: ComparisonResult
 
 
+class SavedAnalysis(BaseModel):
+    id: str
+    access_key: str = Field(description="Shown once. Only its hash is stored, so a lost key cannot be recovered.")
+    created_at: str
+
+
+class StoredAnalysis(BaseModel):
+    id: str
+    created_at: str
+    result: "AnalyzeResponse"
+
+
 def _error(status_code: int, code: str, message: str) -> HTTPException:
     return HTTPException(status_code, {"code": code, "message": message})
 
@@ -182,16 +200,19 @@ def _same_words(a: str, b: str) -> bool:
     return words(a) == words(b)
 
 
-def create_app(settings: Settings | None = None, transcriber: Transcriber | None = None) -> FastAPI:
+def create_app(
+    settings: Settings | None = None, transcriber: Transcriber | None = None, archive: AnalysisArchive | None = None
+) -> FastAPI:
     settings = settings or get_settings()
     transcriber = transcriber or FasterWhisperTranscriber(settings)
+    archive = archive or AnalysisArchive(make_store(settings.supabase_url, settings.supabase_service_role_key, settings.supabase_table))
     detection_settings = DetectionSettings()
     app = FastAPI(title="SpeakIQ AI Coach API", version=__version__, description=DESCRIPTION)
 
     app.add_middleware(
         CORSMiddleware,
         allow_origins=settings.cors_origins,
-        allow_methods=["GET", "POST"],
+        allow_methods=["GET", "POST", "DELETE"],
         allow_headers=["*"],
     )
 
@@ -272,6 +293,7 @@ def create_app(settings: Settings | None = None, transcriber: Transcriber | None
                 supported_extensions=list(SUPPORTED_EXTENSIONS),
             ),
             transcription=transcriber.status(),
+            persistence=PersistenceStatus(configured=archive.configured),
         )
 
     @api.post("/features", response_model=AudioFeatures, responses=ERROR_RESPONSES, tags=["analysis"])
@@ -500,6 +522,43 @@ def create_app(settings: Settings | None = None, transcriber: Transcriber | None
             participant=participant_summary,
             comparison=compare_deliveries(reference_analysis, participant_analysis),
         )
+
+    def persistence_error(error: PersistenceError) -> HTTPException:
+        return _error(error.status_code, error.code, error.message)
+
+    @api.post("/analyses", response_model=SavedAnalysis, status_code=201, responses=ERROR_RESPONSES, tags=["storage"])
+    def save_analysis(result: AnalyzeResponse, request: Request) -> SavedAnalysis:
+        """
+        Save an analysis result, if saving is configured. Audio is never stored. Returns an ID and an access key;
+        keep the key, because both are needed to open or delete the analysis and the key cannot be recovered.
+        """
+        length = int(request.headers.get("content-length") or 0)
+        if length > settings.max_saved_result_mb * 1024 * 1024:
+            raise _error(413, "result_too_large", f"The analysis is larger than the {settings.max_saved_result_mb:g} MB limit for saving.")
+        try:
+            analysis_id, key, created_at = archive.save(result.model_dump(mode="json"))
+        except PersistenceError as error:
+            raise persistence_error(error) from None
+        return SavedAnalysis(id=analysis_id, access_key=key, created_at=created_at)
+
+    AccessKey = Annotated[str, Header(alias="X-Access-Key", min_length=8, max_length=200, description="The key returned when the analysis was saved.")]
+
+    @api.get("/analyses/{analysis_id}", response_model=StoredAnalysis, responses=ERROR_RESPONSES, tags=["storage"])
+    def open_analysis(analysis_id: str, access_key: AccessKey) -> StoredAnalysis:
+        """Open a saved analysis. A wrong ID and a wrong key give the same 404."""
+        try:
+            result, created_at = archive.open(analysis_id, access_key)
+        except PersistenceError as error:
+            raise persistence_error(error) from None
+        return StoredAnalysis(id=analysis_id, created_at=created_at, result=AnalyzeResponse.model_validate(result))
+
+    @api.delete("/analyses/{analysis_id}", status_code=204, responses=ERROR_RESPONSES, tags=["storage"])
+    def delete_analysis(analysis_id: str, access_key: AccessKey) -> None:
+        """Permanently delete a saved analysis."""
+        try:
+            archive.delete(analysis_id, access_key)
+        except PersistenceError as error:
+            raise persistence_error(error) from None
 
     app.include_router(api)
     return app

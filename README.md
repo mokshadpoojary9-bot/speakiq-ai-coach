@@ -23,7 +23,8 @@ The full specification lives in [`docs/PROJECT_SPEC.yaml`](docs/PROJECT_SPEC.yam
 | Articulation or clarity findings | Deliberately not supported: no measurement was found that would not penalise accent, voice or microphone |
 | Free-form coaching questions, language-model coaching | Not implemented |
 | Dataset publication | Not published; export and upload guide in `data/HOSTING.md` |
-| Free-form coach questions, language model, Supabase, hosting | Not implemented or connected |
+| Optional saving of analysis results to Supabase | Implemented; off until you configure it. See [Saving analyses](#saving-analyses-optional) |
+| Free-form coach questions, language model, hosting | Not implemented or connected |
 
 Every frontend view that shows fixture data carries a "Demo data — not a real analysis" label, and views of your own recording carry a "Real analysis" label. A real analysis is kept in browser memory only and is lost when the page is reloaded. No paid API keys are needed to run the project locally.
 
@@ -95,6 +96,10 @@ All optional. Copy `backend/.env.example` to `backend/.env` to change them. `bac
 | `WHISPER_LANGUAGE` | empty (auto-detect) | Force a language code such as `en` |
 | `WHISPER_DOWNLOAD_ROOT` | empty (Hugging Face cache) | Where to store the model |
 | `HF_TOKEN` | empty | **Secret.** Only needed if `WHISPER_MODEL` points at a private or gated repository |
+| `SUPABASE_URL` | empty | Optional. Your Supabase project URL; saving is off while empty |
+| `SUPABASE_SERVICE_ROLE_KEY` | empty | **Secret, optional.** Backend only; full database access. Saving is off while empty |
+| `SUPABASE_TABLE` | `analyses` | Table created by `docs/supabase/schema.sql` |
+| `MAX_SAVED_RESULT_MB` | `5` | Largest analysis result accepted for saving |
 
 `HF_TOKEN` is read only by the backend, is never returned by the API (`/api/health` reports only whether one is configured) and must never be put in the frontend.
 
@@ -142,6 +147,8 @@ All routes are under `/api`. Upload routes take a multipart form with `file` (WA
 | `POST /api/transcribe` | `file`, optional `language` | Text, segments and word timestamps |
 | `POST /api/align` | `file`, optional `transcript`, optional `language` | Start and end time for each transcript word |
 | `POST /api/analyze` | `file`, optional `reference`, `transcript`, `reference_transcript`, `transcript_reviewed`, `reference_transcript_reviewed`, `language` | The main route: measurements, transcription, alignment, signal quality, findings and rule-based suggestions |
+| `POST /api/analyses` | JSON body: an `/api/analyze` result | Optional saving: an ID and a one-time access key |
+| `GET`, `DELETE /api/analyses/{id}` | header `X-Access-Key` | Open or delete a saved analysis |
 | `POST /api/compare` | `reference`, `participant`, optional `transcript`, optional `language` | Measured differences between two recordings of the same text |
 
 ```powershell
@@ -275,6 +282,20 @@ python -m app.dataset export                                  # package for uplo
 
 The build needs no network access and is deterministic. Transcripts are unverified machine output until someone records a review; the dataset is not published. See the dataset card for the verification workflow and [`data/HOSTING.md`](data/HOSTING.md) for publishing. `pytest tests/test_dataset.py tests/test_stress.py` runs the dataset validation tests and the audio stress tests.
 
+## Saving analyses (optional)
+
+Analyses normally live only in the browser tab and are lost on reload. Saving them needs a Supabase project, and stays switched off until you configure it; everything else works without it.
+
+**What is stored:** the analysis result, including transcript text. **Audio is never stored.** There are no user accounts, so access works by possession of a secret: saving returns an ID and an access key, only a hash of the key is stored, and opening or deleting needs both. There is no way to list saved analyses, and a wrong ID or key gets the same "not found" answer.
+
+To switch it on:
+
+1. In your Supabase project's SQL editor, run [`docs/supabase/schema.sql`](docs/supabase/schema.sql). It creates the `analyses` table with row-level security on and no policies, so the public anon key cannot read or write it.
+2. In `backend/.env`, set `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` (Project Settings > API). The service-role key has full database access: keep it in the backend only, never in a `VITE_` variable.
+3. Restart the backend. `/api/health` then reports `"persistence": {"configured": true}`.
+
+Then use **Save this analysis** on the dashboard, and **Open a saved analysis** in the workspace. A saved analysis opens without playback, because its audio was not kept.
+
 ## Troubleshooting
 
 | Symptom | Cause and fix |
@@ -288,4 +309,6 @@ The build needs no network access and is deterministic. Transcripts are unverifi
 | `missing_dependency` | Run `pip install -r requirements.txt` inside the backend virtual environment |
 | `model_load_failed` | Check `WHISPER_MODEL`, `WHISPER_DEVICE` and `WHISPER_COMPUTE_TYPE`. `cuda` needs an NVIDIA GPU with CUDA libraries |
 | Windows: the backend process exits abruptly on the first transcription | An old system Microsoft C++ runtime. `requirements.txt` installs the `msvc-runtime` package to work around this; make sure it is installed in the virtual environment, or install the latest "Microsoft Visual C++ Redistributable (x64)" |
+| `persistence_not_configured` when saving | Saving is off. Set `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` in `backend/.env` and restart, or ignore it: saving is optional |
+| `persistence_failed` or `persistence_unavailable` | Supabase refused or could not be reached. Check the URL, the service-role key, and that `docs/supabase/schema.sql` was run |
 | `unsupported_audio` for M4A or WebM | The backend decodes WAV, FLAC, OGG and MP3 only. Convert the file first |

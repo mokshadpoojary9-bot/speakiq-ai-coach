@@ -1,6 +1,7 @@
 import { useEffect, useId, useRef, useState, type ChangeEvent, type FormEvent } from 'react'
 import { Link } from 'react-router-dom'
 import { AudioPreview } from '../components/AudioPreview'
+import { OpenSavedForm } from '../components/SavedAnalyses'
 import { TranscriptPanel } from '../components/TranscriptPanel'
 import { btnPrimary, btnSecondary, Card, EmptyState, ErrorState, PageHeader } from '../components/ui'
 import { analyzeRecording, API_BASE_URL, ApiError, type AnalyzeResponse, type ComponentStatus } from '../lib/api'
@@ -385,6 +386,13 @@ export default function Workspace() {
           )}
         </div>
       </form>
+
+      <details className="mt-8 rounded-xl border border-line bg-ink-800 p-5">
+        <summary className="cursor-pointer rounded text-sm font-medium">Open a saved analysis</summary>
+        <div className="mt-4">
+          <OpenSavedForm />
+        </div>
+      </details>
     </>
   )
 }

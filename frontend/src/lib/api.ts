@@ -320,6 +320,49 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   return body as T
 }
 
+export interface SavedAnalysis {
+  id: string
+  /** Shown once; only its hash is stored. */
+  access_key: string
+  created_at: string
+}
+
+export interface StoredAnalysis {
+  id: string
+  created_at: string
+  result: AnalyzeResponse
+}
+
+/** Optional: fails with code persistence_not_configured when the backend has no database set up. */
+export function saveAnalysis(result: AnalyzeResponse): Promise<SavedAnalysis> {
+  return request<SavedAnalysis>('/api/analyses', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(result),
+  })
+}
+
+export function openAnalysis(id: string, accessKey: string): Promise<StoredAnalysis> {
+  return request<StoredAnalysis>(`/api/analyses/${encodeURIComponent(id)}`, { headers: { 'X-Access-Key': accessKey } })
+}
+
+export async function deleteAnalysis(id: string, accessKey: string): Promise<void> {
+  let response: Response
+  try {
+    response = await fetch(`${API_BASE_URL}/api/analyses/${encodeURIComponent(id)}`, {
+      method: 'DELETE',
+      headers: { 'X-Access-Key': accessKey },
+    })
+  } catch {
+    throw new ApiError('network', `No response from the backend at ${API_BASE_URL}.`)
+  }
+  if (!response.ok) {
+    const body = await response.json().catch(() => null)
+    const detail = (body as { detail?: { code?: string; message?: string } } | null)?.detail
+    throw new ApiError('http', detail?.message ?? `The backend returned HTTP ${response.status}.`, response.status, detail?.code ?? null)
+  }
+}
+
 export function fetchHealth(signal?: AbortSignal): Promise<HealthResponse> {
   return request<HealthResponse>('/api/health', { signal })
 }

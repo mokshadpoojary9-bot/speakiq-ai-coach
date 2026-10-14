@@ -51,6 +51,13 @@ class Settings:
     whisper_compute_type: str = field(default_factory=lambda: _env("WHISPER_COMPUTE_TYPE", "int8"))
     whisper_language: str | None = field(default_factory=lambda: _env("WHISPER_LANGUAGE"))
     whisper_download_root: str | None = field(default_factory=lambda: _env("WHISPER_DOWNLOAD_ROOT"))
+    # Optional storage of analysis results. The service-role key is a secret with full database access:
+    # backend only, excluded from repr, never returned by the API, never in a VITE_ variable.
+    supabase_url: str | None = field(default_factory=lambda: _env("SUPABASE_URL"))
+    supabase_service_role_key: str | None = field(default_factory=lambda: _env("SUPABASE_SERVICE_ROLE_KEY"), repr=False)
+    supabase_table: str = field(default_factory=lambda: _env("SUPABASE_TABLE", "analyses"))
+    max_saved_result_mb: float = field(default_factory=lambda: float(_env("MAX_SAVED_RESULT_MB", "5")))
+
     # Secret. Excluded from repr so it cannot end up in logs or tracebacks. Never return it from the API.
     hf_token: str | None = field(default_factory=lambda: _env("HF_TOKEN"), repr=False)
 

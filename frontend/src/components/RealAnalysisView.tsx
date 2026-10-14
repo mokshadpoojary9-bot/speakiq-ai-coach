@@ -5,6 +5,7 @@ import { pauseMarkers } from '../lib/measurements'
 import type { AnalysisSession } from '../lib/session'
 import { AudioPreview } from './AudioPreview'
 import { categoryColor, FindingsPanel } from './FindingsPanel'
+import { SavePanel } from './SavedAnalyses'
 import { MeasuredCharts } from './MeasuredCharts'
 import { TranscriptPanel } from './TranscriptPanel'
 import { Card, MetricStatusBadge } from './ui'
@@ -153,6 +154,13 @@ export function RealAnalysisView({ session }: { session: AnalysisSession }) {
           Findings
         </h2>
         <FindingsPanel result={result} onSeek={play} />
+      </Card>
+
+      <Card aria-labelledby="save-heading">
+        <h2 id="save-heading" className="mb-3 text-lg font-semibold">
+          Save
+        </h2>
+        <SavePanel result={result} />
       </Card>
 
       <Card aria-labelledby="methods-heading">

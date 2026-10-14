@@ -275,7 +275,11 @@ def test_a_processing_failure_returns_a_safe_error_without_internals(monkeypatch
 def test_no_new_route_was_added_and_the_models_are_typed_in_openapi():
     schema = client.get("/openapi.json").json()
 
-    assert set(schema["paths"]) == {"/api/health", "/api/features", "/api/transcribe", "/api/align", "/api/analyze", "/api/compare"}
+    # Still exactly one analysis route of each kind; the only other routes are the optional storage ones (Prompt 8).
+    assert set(schema["paths"]) == {
+        "/api/health", "/api/features", "/api/transcribe", "/api/align", "/api/analyze", "/api/compare",
+        "/api/analyses", "/api/analyses/{analysis_id}",
+    }  # fmt: skip
     form = schema["components"]["schemas"]["Body_analyze_api_analyze_post"]["properties"]
     assert set(form) == {
         "file", "reference", "transcript", "reference_transcript", "transcript_reviewed", "reference_transcript_reviewed", "language",

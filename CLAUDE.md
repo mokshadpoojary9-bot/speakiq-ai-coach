@@ -43,6 +43,8 @@ SpeakIQ AI Coach — evidence-first speech delivery analysis with temporally gro
 
 ## Configuration and secrets
 
+- Optional persistence (`backend/app/persistence.py`, routes `/api/analyses`): off unless `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` are set. Never store audio. Never add a listing route: access is only by ID plus access key, with only the key's hash stored. The service-role key is backend-only and excluded from `Settings` repr. Tests use an in-memory store or `httpx.MockTransport`; they must never call a real Supabase project.
+
 - Backend config: `backend/.env` (ignored), documented in `backend/.env.example`. `HF_TOKEN` is optional (the default public Whisper model needs none), backend-only, excluded from `Settings` repr, and must never be logged, returned by the API, or placed in any `VITE_*` variable.
 - Frontend config: `frontend/.env.local` (ignored) holds only `VITE_API_BASE_URL`; read it through `frontend/src/lib/api.ts` rather than hardcoding URLs.
 - Backend tests must stay offline: use the fakes in `backend/tests/speech_fakes.py` instead of loading a real model.

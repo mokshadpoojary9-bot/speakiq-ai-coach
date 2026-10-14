@@ -244,4 +244,11 @@ milestones:
       - "Pitch and signal-quality safeguards: configurable pitch range, valid low pitch handled, unreliable pitch marked low quality, clipping and noise checks reused."
       - "Reuse existing routes; typed request and response models; safe errors; the frontend distinguishes findings, no supported findings, partial analysis, invalid input and processing failure."
       - "Deterministic regression tests for the twelve listed areas, with no fabricated values."
-  # Milestones 6 and later: not yet supplied by the owner.
+  - id: "6-8"
+    name: "Dashboard integration, evidence-based coach, optional persistence"
+    source: "Summarised from the owner's Prompts 6, 7 and 8. The Prompt 8 text itself was not received; scope came from the owner's instruction to implement only the necessary persistence code with safe optional configuration and access controls, without blocking on credentials."
+    tasks:
+      - "Prompt 6: connect the dashboard to the real analysis endpoints through VITE_API_BASE_URL; keep reference and participant transcripts separate; warn when comparison is inconclusive or recognition unreliable; handle every result and error state."
+      - "Prompt 7: evidence-based coach: each recommendation states the measured feature, the observed difference, the interval and the reason; confirmed, uncertain, unavailable and demo feedback are distinguished; deterministic rules, with any language model optional."
+      - "Prompt 8: optional Supabase persistence of analysis results; configuration-driven, off without credentials, service-role key backend-only, access controlled, audio never stored."
+  # Later milestones: not yet supplied by the owner.
