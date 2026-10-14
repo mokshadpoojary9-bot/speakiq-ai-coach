@@ -449,6 +449,75 @@ describe('Evidence Coach with a real analysis', () => {
     expect(screen.queryByText('Slow down on the sentence that carries your main claim.')).not.toBeInTheDocument()
   })
 
+  it('links each suggestion to its measured feature, difference, interval and reason', () => {
+    renderWith(<Coach />, sampleAnalysis())
+    const [tip] = within(screen.getByRole('list', { name: 'Coaching suggestions' })).getAllByRole('article')
+
+    expect(tip).toHaveTextContent('Confirmed by measurement')
+    expect(tip).toHaveTextContent('Why this is suggested' + 'The measured silence at these points was longer than the reference’s silence')
+    const row = within(tip).getByRole('row', { name: /silence between the same words/ })
+    expect(row).toHaveTextContent('0:02.0 – 0:02.8' + 'silence between the same words (s)' + '0.8' + '0.1' + '0.7' + 'high')
+  })
+
+  it('marks an uncertain suggestion and shows missing reference values as missing, not zero', () => {
+    const result = sampleAnalysis()
+    const tip = result.coaching![0]
+    tip.certainty = 'uncertain'
+    tip.evidence = [{ ...tip.evidence![0], reference_value: null, difference: null, evidence_quality: 'low' }]
+    renderWith(<Coach />, result)
+
+    const card = within(screen.getByRole('list', { name: 'Coaching suggestions' })).getByRole('article')
+    expect(card).toHaveTextContent('Uncertain')
+    expect(card).not.toHaveTextContent('Confirmed by measurement')
+    const row = within(card).getByRole('row', { name: /silence between the same words/ })
+    expect(row).toHaveTextContent('0.8' + 'no reference' + '—' + 'low')
+  })
+
+  it('never shows an invalid interval in the evidence table', () => {
+    const result = sampleAnalysis()
+    result.coaching![0].evidence = [{ ...result.coaching![0].evidence![0], start: 5.0, end: 4.0 }]
+    renderWith(<Coach />, result)
+
+    const row = within(screen.getByRole('list', { name: 'Coaching suggestions' })).getByRole('row', { name: /silence between/ })
+    expect(row).toHaveTextContent('interval unavailable')
+  })
+
+  it('lists what could not be assessed, so a missing suggestion is not read as fine', () => {
+    renderWith(<Coach />, sampleAnalysis())
+
+    const missing = within(screen.getByRole('list', { name: 'Not assessed' })).getAllByRole('listitem')
+    expect(missing.map((m) => m.textContent)).toEqual([
+      'Uneven pacing · not measurable here: Needs at least 3 runs of 5 consecutive aligned words; found 1.',
+      'Articulation · not supported: No defensible measurement is available.',
+    ])
+    expect(screen.getByText(/That is not a sign that they are fine/)).toBeInTheDocument()
+  })
+
+  it('still lists what could not be assessed when there are no suggestions', () => {
+    const result = sampleAnalysis()
+    result.status = 'completed_no_findings'
+    result.findings = []
+    result.coaching = []
+    renderWith(<Coach />, result)
+
+    expect(screen.getByText('No coaching for this recording')).toBeInTheDocument()
+    expect(within(screen.getByRole('list', { name: 'Not assessed' })).getAllByRole('listitem')).toHaveLength(2)
+  })
+
+  it('works with suggestions from a backend older than evidence-linked coaching', () => {
+    const result = sampleAnalysis()
+    const tip = result.coaching![0]
+    delete tip.certainty
+    delete tip.reason
+    delete tip.evidence
+    renderWith(<Coach />, result)
+
+    const card = within(screen.getByRole('list', { name: 'Coaching suggestions' })).getByRole('article')
+    expect(card).toHaveTextContent('Shorten the pauses at the marked points')
+    expect(card).not.toHaveTextContent('Confirmed by measurement')
+    expect(within(card).queryByRole('table')).not.toBeInTheDocument()
+  })
+
   it('shows the caution when the evidence behind a suggestion is weak', () => {
     const result = sampleAnalysis()
     result.coaching![0].caution = 'The evidence behind this is weak for this recording.'

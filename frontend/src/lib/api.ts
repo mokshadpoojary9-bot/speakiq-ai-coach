@@ -230,6 +230,20 @@ export interface CoachingTip {
   practice: string
   based_on: string
   caution: string | null
+  /** Absent in responses from backends older than evidence-linked coaching. */
+  certainty?: 'confirmed' | 'uncertain'
+  reason?: string
+  evidence?: {
+    finding_id: string
+    start: number
+    end: number
+    feature: string
+    unit: string
+    participant_value: number | null
+    reference_value: number | null
+    difference: number | null
+    evidence_quality: string
+  }[]
   source: string
 }
 

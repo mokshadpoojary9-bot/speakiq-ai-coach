@@ -254,7 +254,7 @@ Two further checks were run once on the development machine:
 
 Read these numbers with care. The uneven-pacing and pitch thresholds were chosen using this same dataset, so their results here are optimistic. The dataset is 3 speakers of transformed audio, so this shows how the rules behave, not how accurate they are on natural speech.
 
-**Suggestions.** `coaching` holds one tip per kind of finding: fixed wording chosen by the rule that produced the findings, quoting their measured evidence, with a caution when that evidence is weak. There is no language model, no tip without a finding, and nothing about why a difference occurred.
+**Suggestions.** `coaching` holds one tip per kind of finding: fixed wording chosen by the rule that produced the findings. Each tip carries `evidence` (for every finding behind it: the interval, the measured feature and unit, your value, the reference value or null, and the difference), a `reason` that explains how that measurement leads to the suggestion, and a `certainty` of `confirmed` or `uncertain` (uncertain when any finding's evidence is weak, or the rule only claims a possibility, as the pitch rules do). The Evidence Coach page also lists what could not be assessed. There is no language model: the deterministic rules are the only path, so nothing needs a key, and no tip exists without a finding or says why a difference occurred.
 
 Acoustic features are always returned for valid audio. If transcription or alignment cannot run, that part is `null`, `components` gives its `status`, `code` and `message`, and rules that need words are withheld, so a missing model never blocks the acoustic measurements.
 
