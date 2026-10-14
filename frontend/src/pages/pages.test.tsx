@@ -73,7 +73,7 @@ describe('Evidence Coach', () => {
 
     const input = await screen.findByLabelText('Your question')
     expect(input).toBeDisabled()
-    expect(input).toHaveAccessibleDescription(/neither of which is connected/)
+    expect(input).toHaveAccessibleDescription(/would need a language model, which this app does not use/)
   })
 })
 

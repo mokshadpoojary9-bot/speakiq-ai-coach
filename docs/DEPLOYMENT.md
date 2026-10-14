@@ -46,7 +46,7 @@ After the first deploy, open `https://<your-service>.onrender.com/api/health`. I
 
 - **Memory.** Speech recognition plus audio analysis needs roughly 1 GB of RAM in practice. Render's smallest instances may run out of memory on the first transcription; if requests fail or the service restarts, choose a larger instance or a smaller model (`WHISPER_MODEL=tiny`, less accurate).
 - **First request.** If the model was not downloaded at build time, the first analysis downloads about 145 MB and is slow.
-- **Python version.** Development used Python 3.14 on Windows. Before preparing this guide, the full backend test suite was also run on Python 3.13; see the result recorded in the final audit. Linux has not been tested locally.
+- **Python version.** Development used Python 3.14 on Windows. The full backend test suite also passes on a fresh Python 3.13 install on Windows (see `docs/FINAL_AUDIT.md`), which matches `PYTHON_VERSION` in the blueprint. Linux has not been tested.
 - **Cold starts.** Free instances sleep when idle; the first request after a sleep takes longer.
 
 ## 2. Frontend on Vercel

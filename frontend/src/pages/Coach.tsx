@@ -74,8 +74,8 @@ function CoachContent({ analysis }: { analysis: AnalysisResult }) {
             className="mt-2 block w-full cursor-not-allowed rounded-lg border border-line bg-ink-900 p-3 text-sm opacity-60"
           />
           <p id={`${questionId}-note`} className="mt-2 text-sm text-muted">
-            Free-form questions need the analysis backend and an optional language model, neither of which is connected
-            in this build. The coaching above is fixed sample text.
+            Free-form questions are not supported: answering them would need a language model, which this app does not
+            use. The coaching above is fixed sample text.
           </p>
         </Card>
       </div>

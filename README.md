@@ -24,10 +24,9 @@ The full specification lives in [`docs/PROJECT_SPEC.yaml`](docs/PROJECT_SPEC.yam
 | Free-form coaching questions, language-model coaching | Not implemented |
 | Dataset publication | Not published; export and upload guide in `data/HOSTING.md` |
 | Optional saving of analysis results to Supabase | Implemented; off until you configure it. See [Saving analyses](#saving-analyses-optional) |
-| Free-form coach questions, language model | Not implemented |
 | Hosting (Render backend, Vercel frontend) | **Not deployed.** Configuration prepared in `render.yaml` and `frontend/vercel.json`; steps in [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md) |
 
-Every frontend view that shows fixture data carries a "Demo data — not a real analysis" label, and views of your own recording carry a "Real analysis" label. A real analysis is kept in browser memory only and is lost when the page is reloaded. No paid API keys are needed to run the project locally.
+Every frontend view that shows fixture data carries a "Demo data — not a real analysis" label, and views of your own recording carry a "Real analysis" label. A real analysis is kept in browser memory and is lost when the page is reloaded, unless you save it (optional, see [Saving analyses](#saving-analyses-optional)). No paid API keys are needed to run the project locally.
 
 ## Repository layout
 
@@ -37,10 +36,11 @@ backend/    Python + FastAPI
   app/audio/    acoustic feature extraction
   app/speech/   transcription and word alignment
   app/comparison/ reference-versus-participant differences
-  app/detection/  signal quality, alignment status and rule-based findings
+  app/detection/  signal quality, alignment status, rule-based findings and coaching
+  app/persistence.py  optional Supabase storage of analysis results
   app/dataset/  dataset schema, transforms, build, validation, review and export
 data/       contrastive dataset: sources, examples, manifest, schema, dataset card
-docs/       Project specification
+docs/       Project specification, deployment guide, Supabase schema, final audit
 ```
 
 ## Prerequisites
