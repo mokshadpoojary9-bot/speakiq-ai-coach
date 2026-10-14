@@ -11,7 +11,7 @@ import pytest
 from app.dataset.__main__ import EXAMPLES_DIR, EXAMPLES_OPTIONS, FULL_DIR, REGISTRY, main, rebuild_differences
 from app.dataset.build import build_dataset
 from app.dataset.export import ExportError, export_dataset
-from app.dataset.review import ReviewError, review_sheet, review_status, verify_transcript
+from app.dataset.review import ReviewError, interactive_review, review_sheet, review_status, verify_transcript
 from app.dataset.validate import validate_directory, validate_manifest
 
 from .test_dataset import codes, write_registry
@@ -254,3 +254,92 @@ def test_exports_and_generated_audio_are_ignored_by_git():
 
     assert "data/export/" in ignore
     assert "data/speakiq-contrastive-v1/audio/" in ignore
+
+
+# --- Interactive transcript review -----------------------------------------------------------
+
+
+class Session:
+    """Scripted answers for the reviewer, and a record of what was shown and played."""
+
+    def __init__(self, answers):
+        self.answers = list(answers)
+        self.shown: list[str] = []
+        self.played: list[Path] = []
+
+    def ask(self, prompt):
+        self.shown.append(prompt)
+        return self.answers.pop(0)
+
+    def say(self, text):
+        self.shown.append(text)
+
+    def play(self, path):
+        self.played.append(path)
+
+
+def run_review(registry, answers, **kwargs):
+    session = Session(answers)
+    counts = interactive_review(
+        registry, reviewer="Asha", ask=session.ask, say=session.say, play=session.play, today=date(2026, 10, 14), **kwargs
+    )
+    return counts, session
+
+
+def test_review_plays_each_clip_and_shows_its_transcript(workspace):
+    _, registry, _ = workspace
+
+    counts, session = run_review(registry, ["s", "s", "s"])
+
+    assert counts == {"confirmed": 0, "corrected": 0, "skipped": 3}
+    assert [p.name for p in session.played] == ["synthetic-0.wav", "synthetic-1.wav", "synthetic-2.wav"]
+    text = "\n".join(session.shown)
+    assert "[1/3] synthetic-0" in text and "test signal" in text
+    assert {s.transcript_review.status for s in review_status(registry)} == {"unverified"}
+
+
+def test_confirming_requires_saying_you_listened(workspace):
+    _, registry, _ = workspace
+
+    counts, session = run_review(registry, ["c", "no", "p", "c", "yes", "q"])
+
+    sources = {s.source_id: s for s in review_status(registry)}
+    assert counts == {"confirmed": 1, "corrected": 0, "skipped": 2}
+    assert "Not recorded. Play the clip and listen to all of it first." in session.shown
+    assert len([p for p in session.played if p.name == "synthetic-0.wav"]) == 2  # played, then played again
+    first = sources["synthetic-0"].transcript_review
+    assert (first.status, first.reviewer, first.reviewed_on, first.changed) == ("verified", "Asha", "2026-10-14", False)
+    assert sources["synthetic-1"].transcript_review.status == "unverified"
+
+
+def test_editing_records_the_correction_and_keeps_the_machine_text(workspace):
+    _, registry, _ = workspace
+
+    counts, _ = run_review(registry, ["e", "", "e", "corrected signal", "yes", "q"])
+
+    source = next(s for s in review_status(registry) if s.source_id == "synthetic-0")
+    assert counts["corrected"] == 1
+    assert source.transcript == "corrected signal"
+    assert source.transcript_provenance == "manual_verified"
+    assert (source.transcript_review.changed, source.transcript_review.asr_transcript) == (True, "test signal")
+
+
+def test_review_skips_what_is_already_verified_and_needs_a_reviewer(workspace):
+    _, registry, _ = workspace
+    run_review(registry, ["c", "yes", "q"])
+
+    counts, session = run_review(registry, ["q"])
+
+    assert "[1/2] synthetic-1" in "\n".join(session.shown)
+    with pytest.raises(ReviewError, match="reviewer name"):
+        interactive_review(registry, reviewer=" ", ask=lambda _: "q", say=lambda _: None, play=None)
+
+
+def test_unknown_answers_are_asked_again_and_nothing_is_recorded(workspace):
+    _, registry, _ = workspace
+
+    counts, session = run_review(registry, ["x", "yes", "q"])
+
+    assert "Please type c, e, p, s or q." in session.shown
+    assert counts["confirmed"] == 0
+    assert {s.transcript_review.status for s in review_status(registry)} == {"unverified"}

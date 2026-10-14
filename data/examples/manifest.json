@@ -1,7 +1,7 @@
 {
   "schema_version": "1.1.0",
   "dataset_name": "speakiq-contrastive-examples",
-  "dataset_version": "1.0.1",
+  "dataset_version": "1.1.0",
   "description": "Compact example subset of the SpeakIQ contrastive dataset: one speaker, the reference and the most strongly altered sample of each covered flaw category. For inspection and tests, not for training or evaluation.",
   "license": "Audio: derived from LibriVox public-domain recordings distributed in LibriSpeech (CC BY 4.0). Metadata: CC BY 4.0.",
   "built_with": "speakiq-ai-coach backend 0.1.0",
@@ -13,11 +13,10 @@
     "slow_delivery",
     "uneven_pacing",
     "pitch_monotony",
+    "filler_words",
     "unclear_articulation"
   ],
-  "flaw_categories_not_covered": {
-    "filler_words": "No samples. Fillers such as 'um' cannot be created by transforming a recording that does not contain them, and no licensed recordings with fillers or licensed speech synthesis were available."
-  },
+  "flaw_categories_not_covered": {},
   "sources": [
     {
       "source_id": "librispeech-5703-47212-0000",
@@ -427,6 +426,86 @@
           "sample_value": 6.57,
           "expectation": "measured pitch range is narrower than the reference",
           "supported": true
+        }
+      },
+      "split": "train"
+    },
+    {
+      "sample_id": "librispeech-5703-47212-0000__filler_words__severe",
+      "pair_id": "pair-librispeech-5703-47212-0000",
+      "source_id": "librispeech-5703-47212-0000",
+      "speaker_id": "librispeech-speaker-5703",
+      "audio_path": "audio/pair-librispeech-5703-47212-0000/librispeech-5703-47212-0000__filler_words__severe.flac",
+      "reference_audio_path": "audio/pair-librispeech-5703-47212-0000/librispeech-5703-47212-0000__reference.flac",
+      "sha256": "e855767e14622e13e097199fadb50daeac205bc77422af8e0844b85d3bd4619b",
+      "duration_sec": 17.32,
+      "sample_rate_hz": 16000,
+      "transcript": "With her white paint and her scarlet smoke stack, the inverse shield, one of the two small steamers that during the summer months, applied up and down the lock, and incidentally carried down communication between inverse shield and cryon.",
+      "transcript_differs_from_reference": false,
+      "transcript_difference_note": "",
+      "delivery_condition": "flawed",
+      "data_origin": "transformed_real",
+      "flaw_category": "filler_words",
+      "severity": "severe",
+      "severity_rank": 4,
+      "flaw_intervals": [
+        {
+          "start": 3.09,
+          "end": 3.59,
+          "label": "synthetic_filler_uh",
+          "detail": "0.50 s formant-synthesised 'uh' at 83 Hz inserted at 3.03 s of the reference"
+        },
+        {
+          "start": 5.31,
+          "end": 5.81,
+          "label": "synthetic_filler_um",
+          "detail": "0.50 s formant-synthesised 'um' at 83 Hz inserted at 4.63 s of the reference"
+        },
+        {
+          "start": 9.5,
+          "end": 10.0,
+          "label": "synthetic_filler_uh",
+          "detail": "0.50 s formant-synthesised 'uh' at 83 Hz inserted at 8.20 s of the reference"
+        },
+        {
+          "start": 11.88,
+          "end": 12.38,
+          "label": "synthetic_filler_um",
+          "detail": "0.50 s formant-synthesised 'um' at 83 Hz inserted at 9.96 s of the reference"
+        }
+      ],
+      "generation": {
+        "method": "insert_synthetic_filled_pause",
+        "parameters": {
+          "filler_sec": 0.5,
+          "requested_count": 4,
+          "inserted_count": 4,
+          "f0_hz": 83.1
+        },
+        "tool": "numpy, scipy (formant synthesis)"
+      },
+      "annotation": {
+        "label_provenance": "generated_by_construction",
+        "label_support": "proxy",
+        "annotator": null,
+        "notes": "PROXY LABEL, SYNTHETIC SOUND. A formant-synthesised 'uh' or 'um' at the speaker's own pitch was inserted into the real recording; no person said it. The intervals are exact. The transcript does not include the fillers, as a script would not."
+      },
+      "measured": {
+        "provenance": "automatic_estimate",
+        "tool": "speakiq-ai-coach backend 0.1.0",
+        "pitch_median_hz": 79.1,
+        "pitch_range_semitones": 9.06,
+        "total_silence_sec": 1.77,
+        "internal_pause_count": 4,
+        "syllable_rate_estimate_per_sec": 2.54,
+        "spectral_centroid_hz": 859.1,
+        "peak_amplitude": 0.8029,
+        "support_check": {
+          "metric": "none",
+          "reference_value": null,
+          "sample_value": null,
+          "expectation": "no independent automatic check is implemented for this category",
+          "supported": null
         }
       },
       "split": "train"

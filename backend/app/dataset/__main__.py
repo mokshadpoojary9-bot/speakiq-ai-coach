@@ -9,6 +9,7 @@
     python -m app.dataset transcripts status    show which transcripts have been verified
     python -m app.dataset transcripts sheet     print a review checklist
     python -m app.dataset transcripts verify SOURCE_ID --reviewer NAME --listened [--text-file FILE]
+    python -m app.dataset transcripts review [--reviewer NAME]   play each clip and confirm or fix its transcript
 """
 
 import argparse
@@ -20,7 +21,8 @@ from pathlib import Path
 
 from .build import DEFAULT_SEED, build_dataset
 from .export import ExportError, export_dataset
-from .review import ReviewError, review_sheet, review_status, verify_transcript
+from .review import play_audio as interactive_play
+from .review import ReviewError, interactive_review, review_sheet, review_status, verify_transcript
 from .schema import DatasetManifest
 from .validate import validate_directory
 
@@ -121,6 +123,17 @@ def transcripts(args: argparse.Namespace) -> int:
     if args.action == "sheet":
         print(review_sheet(REGISTRY))
         return 0
+    if args.action == "review":
+        reviewer = args.reviewer or input("Your name, recorded with each review: ").strip()
+        try:
+            counts = interactive_review(REGISTRY, reviewer=reviewer, play=None if args.no_play else interactive_play)
+        except ReviewError as error:
+            print(f"Not recorded: {error}")
+            return 1
+        print(f"Done: {counts['confirmed']} confirmed, {counts['corrected']} corrected, {counts['skipped']} skipped.")
+        if counts["confirmed"] or counts["corrected"]:
+            print("Now run `python -m app.dataset build` and `build-examples` so the manifests carry the reviewed transcripts.")
+        return 0
     text = args.text_file.read_text(encoding="utf-8") if args.text_file else None
     try:
         source = verify_transcript(
@@ -150,12 +163,13 @@ def main(argv: list[str] | None = None) -> int:
     export = commands.add_parser("export")
     export.add_argument("--out", type=Path, default=EXPORT_DIR)
     review = commands.add_parser("transcripts")
-    review.add_argument("action", choices=("status", "sheet", "verify"))
+    review.add_argument("action", choices=("status", "sheet", "verify", "review"))
     review.add_argument("source_id", nargs="?")
     review.add_argument("--reviewer")
     review.add_argument("--listened", action="store_true", help="Confirms the reviewer listened to the audio.")
     review.add_argument("--text-file", type=Path, help="Corrected transcript. Omit to confirm the current text.")
     review.add_argument("--notes", default="")
+    review.add_argument("--no-play", action="store_true", help="Do not open clips automatically (review only).")
     args = parser.parse_args(argv)
 
     if args.command == "export-schema":

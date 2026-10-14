@@ -28,7 +28,7 @@ Not run anywhere: deployment to Render or Vercel, a real Supabase project, Linux
 | Requirement | Status | Where |
 | --- | --- | --- |
 | Paired baseline and flawed examples with the same transcript | Done | `data/`, 3 pairs of 25 samples |
-| Multiple flaw types and a severity gradient | Done, with limits | 6 of 7 categories, 4 tiers each. Tiers are transform strengths, not perceptual ratings. No filler-word samples |
+| Multiple flaw types and a severity gradient | Done, with limits | 7 of 7 categories, 4 tiers each. Tiers are transform strengths, not perceptual ratings. Filler samples use synthetic filler sounds |
 | Transcripts, metadata, labels and intervals stored with the audio | Done | `data/speakiq-contrastive-v1/manifest.json` |
 | Small, well-labelled, reproducible | Done | Byte-identical rebuilds on this machine; seeded |
 | Provenance, generation, licensing and limitations documented | Done | `data/DATASET_CARD.md`. Licensing is the project's reading of upstream terms |
@@ -110,13 +110,13 @@ Not in the repository, and not produced by this work: a hosted demo, a published
 - Pitch variation cannot be judged for voices the tracker cannot follow stably, such as the dataset's low, creaky speaker; those findings are withheld.
 - Word timing comes from speech recognition, accurate to about a tenth of a second; misrecognised words drop out of comparisons.
 - Without a reference recording, pace and pauses are judged against general limits, and uneven pacing and pause placement are not judged at all.
-- Dataset transcripts are unverified machine output; one source description is uncertain; there are no filler examples.
+- Dataset transcripts are unverified machine output until a person runs `python -m app.dataset transcripts review`; one source description is uncertain; the filler examples are synthetic sounds, not natural hesitations.
 - Memory needs on small hosting instances are untested.
 
 ## 5. Actions only the owner can take
 
 1. Deploy, following `docs/DEPLOYMENT.md`, and enter the settings it lists on Render and Vercel. Then update its status line.
 2. Optionally create a Supabase project, run `docs/supabase/schema.sql`, and set the two Supabase variables on the backend.
-3. Have a person listen to and verify the dataset transcripts with `python -m app.dataset transcripts verify`.
+3. Have a person listen to and verify the dataset transcripts with `python -m app.dataset transcripts review`.
 4. Optionally publish the dataset following `data/HOSTING.md`, after confirming the licence reading in the dataset card.
 5. Prepare any presentation material the hackathon requires.

@@ -7,7 +7,7 @@
 The export contains only:
 
 - the three LibriVox source clips (public domain, distributed in LibriSpeech under CC BY 4.0),
-- the 72 transformed variants and 3 references built from them,
+- the 84 transformed variants and 3 references built from them (the filler variants contain synthetic filler sounds),
 - the manifest, the JSON Schema, the source registry and the dataset card.
 
 It never includes anything from `backend/.env`, recordings uploaded through the app (those are not stored), or any file outside `data/`. Do not add your own or anyone else's recordings to the export unless you have their permission and have recorded the licence in `sources/sources.json`.
@@ -30,7 +30,7 @@ python -m app.dataset export     # writes data/export/
 speakiq-contrastive-<version>/
   README.md            the dataset card with the metadata block Hugging Face expects
   manifest.json
-  audio/...            75 FLAC files
+  audio/...            87 FLAC files
   sources/...          3 source OGG files and sources.json
   schema/dataset.schema.json
   SHA256SUMS.txt       checksum of every file above
@@ -56,7 +56,7 @@ The Hub is designed for datasets, shows the card as the landing page and can pla
 
    ```powershell
    hf repos create YOUR_USERNAME/speakiq-contrastive --repo-type dataset
-   hf upload YOUR_USERNAME/speakiq-contrastive ..\data\export\speakiq-contrastive-1.0.1 . --repo-type dataset
+   hf upload YOUR_USERNAME/speakiq-contrastive ..\data\export\speakiq-contrastive-1.1.0 . --repo-type dataset
    ```
 
    These are the commands of `huggingface_hub` 2.x. Older versions use `hf repo create`, or `huggingface-cli` in place of `hf`.
@@ -65,7 +65,7 @@ The Hub is designed for datasets, shows the card as the landing page and can pla
 ## 2b. Or attach it to a GitHub Release
 
 1. On GitHub, open the repository → Releases → "Draft a new release".
-2. Create a tag such as `dataset-v1.0.1`, and attach `data/export/speakiq-contrastive-1.0.1.zip`.
+2. Create a tag such as `dataset-v1.1.0`, and attach `data/export/speakiq-contrastive-1.1.0.zip`.
 3. In the description, paste the Summary and Limitations sections of the dataset card, then publish.
 
 ## 3. After a successful upload

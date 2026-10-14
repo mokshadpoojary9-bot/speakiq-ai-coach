@@ -19,7 +19,7 @@ The full specification lives in [`docs/PROJECT_SPEC.yaml`](docs/PROJECT_SPEC.yam
 | Workspace → backend: upload a recording and an optional reference, get real measurements, transcript, word timing and findings | Working (`POST /api/analyze`) |
 | Dashboard and Acoustic Twin for your recording | Working with real backend results; switchable to the demo fixture |
 | Demo dashboard, coaching and report content | **Demo fixture** (`frontend/src/fixtures/demoAnalysis.ts`), not computed from audio. Shown before you analyse a recording, or when you switch to it |
-| Contrastive demonstration dataset: 3 real recordings, 72 transformed variants, schema, validator, dataset card | Built and validated (see [Dataset](#dataset)) |
+| Contrastive demonstration dataset: 3 real recordings, 84 transformed variants (filler sounds synthetic), schema, validator, review tool, dataset card | Built and validated (see [Dataset](#dataset)) |
 | Articulation or clarity findings | Deliberately not supported: no measurement was found that would not penalise accent, voice or microphone |
 | Free-form coaching questions, language-model coaching | Not implemented |
 | Dataset publication | Not published; export and upload guide in `data/HOSTING.md` |
@@ -268,16 +268,17 @@ Acoustic features are always returned for valid audio. If transcription or align
 
 ## Dataset
 
-`data/` holds a small contrastive speech dataset: three public-domain LibriVox recordings (three speakers) and, for each, 24 deliberately flawed versions made by signal processing, with the altered intervals recorded exactly. Read [`data/DATASET_CARD.md`](data/DATASET_CARD.md) before using it; in short, the flawed samples are transforms of real recordings, not natural flawed speech, and nothing has been manually annotated.
+`data/` holds a small contrastive speech dataset: three public-domain LibriVox recordings (three speakers) and, for each, 28 deliberately flawed versions made by signal processing (the filler versions use synthetic filler sounds), with the altered intervals recorded exactly. Read [`data/DATASET_CARD.md`](data/DATASET_CARD.md) before using it; in short, the flawed samples are transforms of real recordings, not natural flawed speech, and nothing has been manually annotated.
 
 From `backend/`:
 
 ```powershell
-python -m app.dataset build                                   # regenerate all 75 samples (about 19 MB, not in Git)
+python -m app.dataset build                                   # regenerate all 87 samples (about 22 MB, not in Git)
 python -m app.dataset validate ..\data\speakiq-contrastive-v1  # check manifest and audio files
 python -m app.dataset validate ..\data\examples                # check the 7 committed example files
 python -m app.dataset check                                   # validate committed files and confirm a rebuild matches
 python -m app.dataset transcripts status                      # which transcripts a person has verified (none yet)
+python -m app.dataset transcripts review --reviewer "Name"    # play each clip and confirm or fix its transcript
 python -m app.dataset export                                  # package for upload; uploads nothing
 ```
 

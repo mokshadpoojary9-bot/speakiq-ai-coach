@@ -30,7 +30,7 @@ from .splits import split_speakers
 from .transforms import Transformed
 
 DATASET_NAME = "speakiq-contrastive"
-DATASET_VERSION = "1.0.1"
+DATASET_VERSION = "1.1.0"
 DEFAULT_SEED = 20261013
 AUDIO_FORMAT = "FLAC, 16-bit PCM, mono, 16000 Hz"
 TOOL = f"speakiq-ai-coach backend {__version__}"
@@ -63,20 +63,22 @@ RECIPES: dict[str, dict[str, Transform]] = {
         level: (lambda y, sr, k=keep: transforms.flatten_pitch(y, sr, k))
         for level, keep in zip(LEVELS, (0.85, 0.6, 0.35, 0.1))
     },
+    "filler_words": {
+        "near_reference": lambda y, sr: transforms.insert_fillers(y, sr, 0.25, 1),
+        "mild": lambda y, sr: transforms.insert_fillers(y, sr, 0.4, 1),
+        "moderate": lambda y, sr: transforms.insert_fillers(y, sr, 0.45, 2),
+        "severe": lambda y, sr: transforms.insert_fillers(y, sr, 0.5, 4),
+    },
     "unclear_articulation": {
         level: (lambda y, sr, c=cutoff: transforms.muffle(y, sr, c))
         for level, cutoff in zip(LEVELS, (5000.0, 3000.0, 1800.0, 1000.0))
     },
 }
 
-LABEL_SUPPORT = {category: "by_construction" for category in RECIPES} | {"unclear_articulation": "proxy"}
+LABEL_SUPPORT = {category: "by_construction" for category in RECIPES} | {"unclear_articulation": "proxy", "filler_words": "proxy"}
 
-NOT_COVERED = {
-    "filler_words": (
-        "No samples. Fillers such as 'um' cannot be created by transforming a recording that does not contain "
-        "them, and no licensed recordings with fillers or licensed speech synthesis were available."
-    )
-}
+# Every defined flaw category now has samples.
+NOT_COVERED: dict[str, str] = {}
 
 ANNOTATION_NOTES = {
     "excessive_pauses": "Silence was inserted by the build, so the pause intervals are exact.",
@@ -84,6 +86,7 @@ ANNOTATION_NOTES = {
     "slow_delivery": "The whole recording was time-stretched. Natural slow speech also changes pausing, which this does not reproduce.",
     "uneven_pacing": "Alternating stretches were sped up and slowed down; the segment boundaries are exact.",
     "pitch_monotony": "Pitch movement around the speaker's median was scaled down; timing and words are unchanged.",
+    "filler_words": "PROXY LABEL, SYNTHETIC SOUND. A formant-synthesised 'uh' or 'um' at the speaker's own pitch was inserted into the real recording; no person said it. The intervals are exact. The transcript does not include the fillers, as a script would not.",
     "unclear_articulation": "PROXY LABEL. Low-pass filtering removes high-frequency consonant detail but is not real mumbled or slurred speech.",
 }
 

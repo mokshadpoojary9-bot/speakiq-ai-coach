@@ -10,7 +10,7 @@ from dataclasses import dataclass, field
 
 import numpy as np
 from scipy.ndimage import uniform_filter1d
-from scipy.signal import butter, sosfiltfilt
+from scipy.signal import butter, lfilter, sosfiltfilt
 
 from ..audio.features import compute_frames
 
@@ -204,4 +204,92 @@ def muffle(samples: np.ndarray, sample_rate: int, cutoff_hz: float) -> Transform
         method="lowpass_filter",
         tool="scipy",
         parameters={"cutoff_hz": cutoff_hz, "order": 6},
+    )
+
+
+# Formants of a neutral, schwa-like vowel ("uh"), with bandwidths, in Hz.
+FILLER_FORMANTS = ((550.0, 80.0), (1450.0, 100.0), (2500.0, 140.0))
+FILLER_LEVEL = 0.7  # relative to the RMS of the recording's speech
+FILLER_GAP_SEC = 0.06  # short silence either side, as around a natural filled pause
+
+
+def _speaker_median_f0(samples: np.ndarray, sample_rate: int) -> float:
+    import parselmouth
+
+    parselmouth.praat.run(f"random_initializeWithSeedUnsafelyButPredictably ({PRAAT_SEED})")
+    pitch = parselmouth.Sound(samples.astype(np.float64), sampling_frequency=sample_rate).to_pitch_ac(
+        time_step=0.01, pitch_floor=PITCH_FLOOR_HZ, pitch_ceiling=PITCH_CEILING_HZ
+    )
+    voiced = pitch.selected_array["frequency"]
+    voiced = voiced[voiced > 0]
+    return float(np.median(voiced)) if len(voiced) else 120.0
+
+
+def synth_filler(sample_rate: int, duration_sec: float, f0_hz: float, rms: float, nasal: bool) -> np.ndarray:
+    """A formant-synthesised filled pause: 'uh', or 'um' when `nasal` closes it towards a hum.
+
+    Deterministic: a harmonic source at the speaker's pitch, gently falling by a semitone, shaped by
+    three vowel formants. It is a stand-in for a filled pause, not recorded speech.
+    """
+    n = int(round(duration_sec * sample_rate))
+    f0 = f0_hz * 2 ** (-np.linspace(0.0, 1.0, n) / 12)
+    phase = 2 * np.pi * np.cumsum(f0) / sample_rate
+    harmonics = [k for k in range(1, 60) if k * f0_hz * 1.05 < sample_rate / 2]
+    source = sum(np.sin(k * phase) / k**2 for k in harmonics)
+    voice = source
+    for frequency, bandwidth in FILLER_FORMANTS:
+        r = np.exp(-np.pi * bandwidth / sample_rate)
+        theta = 2 * np.pi * frequency / sample_rate
+        voice = lfilter([1 - r], [1, -2 * r * np.cos(theta), r * r], voice)
+    if nasal:
+        # Close into a hum for the last 40%: only the low frequencies of a nasal murmur remain.
+        hum = sosfiltfilt(butter(4, 350, btype="lowpass", fs=sample_rate, output="sos"), voice)
+        blend = np.clip((np.arange(n) - 0.6 * n) / (0.1 * n), 0.0, 1.0)
+        voice = (1 - blend) * voice + blend * hum * (np.std(voice) / max(np.std(hum), 1e-9))
+    fade = min(n // 2, int(0.04 * sample_rate))
+    envelope = np.ones(n)
+    envelope[:fade] = np.sin(np.linspace(0, np.pi / 2, fade)) ** 2
+    envelope[n - fade :] = envelope[:fade][::-1]
+    voice = voice * envelope
+    return (voice * (rms / max(float(np.sqrt(np.mean(voice**2))), 1e-12))).astype(np.float32)
+
+
+def insert_fillers(samples: np.ndarray, sample_rate: int, filler_sec: float, count: int) -> Transformed:
+    """Insert `count` synthetic filled pauses ('uh', then 'um', alternating) at the quietest moments."""
+    points = quiet_points(samples, sample_rate, count)
+    frames = compute_frames(samples, sample_rate)
+    hop = frames.hop_length
+    active = np.repeat(frames.active, hop)[: len(samples)]
+    speech_rms = float(np.sqrt(np.mean(samples[active] ** 2))) if active.any() else 0.05
+    f0 = _speaker_median_f0(samples, sample_rate)
+    gap = np.zeros(int(round(FILLER_GAP_SEC * sample_rate)), dtype=np.float32)
+
+    pieces: list[np.ndarray] = []
+    intervals: list[Altered] = []
+    previous = written = 0
+    for i, point in enumerate(points):
+        cut = int(round(point * sample_rate))
+        pieces.append(_fade(samples[previous:cut], sample_rate, at_end=True))
+        written += cut - previous
+        nasal = i % 2 == 1
+        filler = synth_filler(sample_rate, filler_sec, f0, FILLER_LEVEL * speech_rms, nasal)
+        start = written + len(gap)
+        intervals.append(
+            Altered(
+                start=start / sample_rate,
+                end=(start + len(filler)) / sample_rate,
+                label="synthetic_filler_um" if nasal else "synthetic_filler_uh",
+                detail=f"{filler_sec:.2f} s formant-synthesised '{'um' if nasal else 'uh'}' at {f0:.0f} Hz inserted at {point:.2f} s of the reference",
+            )
+        )
+        pieces.extend([gap, filler, gap])
+        written += 2 * len(gap) + len(filler)
+        previous = cut
+    pieces.append(_fade(samples[previous:], sample_rate, at_end=False) if points else samples[previous:])
+    return Transformed(
+        samples=np.concatenate(pieces).astype(np.float32),
+        intervals=intervals,
+        method="insert_synthetic_filled_pause",
+        tool="numpy, scipy (formant synthesis)",
+        parameters={"filler_sec": filler_sec, "requested_count": count, "inserted_count": len(points), "f0_hz": round(f0, 1)},
     )

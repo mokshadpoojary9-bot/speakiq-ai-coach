@@ -258,7 +258,9 @@ def test_reports_invalid_labels(data):
     reference = next(s for s in data["samples"] if s["delivery_condition"] == "reference")
     reference["flaw_category"] = "slow_delivery"
     flawed(data)["severity_rank"] = 1
-    flawed(data, "pitch_monotony")["flaw_category"] = "filler_words"  # defined, but not covered by this dataset
+    data["flaw_categories_covered"].remove("filler_words")
+    data["samples"] = [s for s in data["samples"] if s["flaw_category"] != "filler_words"]
+    flawed(data, "pitch_monotony")["flaw_category"] = "filler_words"  # defined, but not listed as covered
     flawed(data, "uneven_pacing")["data_origin"] = "real_recording"
     issues = validate_manifest(data)
     assert codes(issues) == ["invalid_label"]
@@ -326,7 +328,10 @@ def test_committed_manifest_matches_the_build_recipe():
     assert len(samples) == len(manifest["pairs"]) * (1 + len(RECIPES) * len(LEVELS))
     assert manifest["flaw_categories_covered"] == list(RECIPES)
     assert manifest["flaw_categories_not_covered"] == NOT_COVERED
-    assert not any(s["flaw_category"] == "filler_words" for s in samples)
+    fillers = [s for s in samples if s["flaw_category"] == "filler_words"]
+    assert fillers and {s["data_origin"] for s in fillers} == {"transformed_real"}
+    assert {s["annotation"]["label_support"] for s in fillers} == {"proxy"}
+    assert all("SYNTHETIC SOUND" in s["annotation"]["notes"] for s in fillers)
     assert {s["data_origin"] for s in samples if s["delivery_condition"] == "flawed"} == {"transformed_real"}
     assert {s["annotation"]["label_provenance"] for s in samples} == {"generated_by_construction"}  # no manual labels exist
 
@@ -356,3 +361,43 @@ def test_dataset_card_exists_and_generated_audio_is_ignored_by_git():
     for heading in ("Provenance", "Licensing", "Generation", "Annotation", "Limitations", "Biases", "Intended use"):
         assert heading in card
     assert "data/speakiq-contrastive-v1/audio/" in (DATA_ROOT.parent / ".gitignore").read_text(encoding="utf-8")
+
+
+def test_synthetic_filler_intervals_are_exact_and_contain_the_inserted_sound(built):
+    _, out, manifest = built
+    reference = next(s for s in manifest.samples if s.sample_id == "synthetic-0__reference")
+    sample = next(s for s in manifest.samples if s.sample_id == "synthetic-0__filler_words__severe")
+    audio, rate = sf.read(out / sample.audio_path, dtype="float32")
+
+    labels = [i.label for i in sample.flaw_intervals]
+    assert labels and set(labels) <= {"synthetic_filler_uh", "synthetic_filler_um"}
+    assert labels[0] == "synthetic_filler_uh"
+    for interval in sample.flaw_intervals:
+        assert interval.end - interval.start == pytest.approx(0.5, abs=0.002)
+        inside = audio[int(interval.start * rate) : int(interval.end * rate)]
+        assert np.sqrt(np.mean(inside**2)) > 0.01  # there is sound in the interval, not silence
+    inserted = sum(i.end - i.start for i in sample.flaw_intervals)
+    assert sample.duration_sec == pytest.approx(reference.duration_sec + inserted + 2 * 0.06 * len(labels), abs=0.002)
+    assert sample.transcript == reference.transcript and not sample.transcript_differs_from_reference
+    assert sample.annotation.label_support == "proxy"
+    assert "SYNTHETIC SOUND" in sample.annotation.notes
+
+
+def test_the_synthetic_filler_is_a_voiced_sound_at_the_requested_pitch():
+    from app.audio import extract_features
+    from app.dataset.transforms import synth_filler
+
+    from .audio_samples import loaded
+
+    uh = synth_filler(SR, 1.0, 140.0, 0.1, nasal=False)
+    um = synth_filler(SR, 1.0, 140.0, 0.1, nasal=True)
+    assert np.sqrt(np.mean(uh**2)) == pytest.approx(0.1, rel=0.01)
+    assert np.array_equal(uh, synth_filler(SR, 1.0, 140.0, 0.1, nasal=False))  # deterministic
+    pitch = extract_features(loaded(np.concatenate([silence(0.3), uh, silence(0.3)]))).pitch
+    assert pitch.median_hz == pytest.approx(140 * 2 ** (-0.5 / 12), rel=0.03)  # it glides down one semitone
+    # 'um' closes into a hum, so its last part has less high-frequency energy than 'uh'.
+    def high_share(x):
+        power = np.abs(np.fft.rfft(x[int(0.7 * SR) : int(0.9 * SR)] * np.hanning(int(0.2 * SR)))) ** 2
+        return power[int(800 / 5) :].sum() / power.sum()  # 5 Hz per bin for a 0.2 s window
+
+    assert high_share(um) < 0.5 * high_share(uh)

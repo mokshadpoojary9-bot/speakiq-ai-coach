@@ -1,7 +1,7 @@
 {
   "schema_version": "1.1.0",
   "dataset_name": "speakiq-contrastive",
-  "dataset_version": "1.0.1",
+  "dataset_version": "1.1.0",
   "description": "Paired reference and deliberately flawed deliveries of the same recordings, with exact temporal labels. Flawed samples are signal-processing transforms of real recordings.",
   "license": "Audio: derived from LibriVox public-domain recordings distributed in LibriSpeech (CC BY 4.0). Metadata: CC BY 4.0.",
   "built_with": "speakiq-ai-coach backend 0.1.0",
@@ -13,11 +13,10 @@
     "slow_delivery",
     "uneven_pacing",
     "pitch_monotony",
+    "filler_words",
     "unclear_articulation"
   ],
-  "flaw_categories_not_covered": {
-    "filler_words": "No samples. Fillers such as 'um' cannot be created by transforming a recording that does not contain them, and no licensed recordings with fillers or licensed speech synthesis were available."
-  },
+  "flaw_categories_not_covered": {},
   "sources": [
     {
       "source_id": "librispeech-5703-47212-0000",
@@ -1448,6 +1447,278 @@
           "sample_value": 6.57,
           "expectation": "measured pitch range is narrower than the reference",
           "supported": true
+        }
+      },
+      "split": "train"
+    },
+    {
+      "sample_id": "librispeech-5703-47212-0000__filler_words__near_reference",
+      "pair_id": "pair-librispeech-5703-47212-0000",
+      "source_id": "librispeech-5703-47212-0000",
+      "speaker_id": "librispeech-speaker-5703",
+      "audio_path": "audio/pair-librispeech-5703-47212-0000/librispeech-5703-47212-0000__filler_words__near_reference.flac",
+      "reference_audio_path": "audio/pair-librispeech-5703-47212-0000/librispeech-5703-47212-0000__reference.flac",
+      "sha256": "67ccb3b5398d5294f01eba09a4de024f8e9965ba5ad7f7cdd1805bec1ae30690",
+      "duration_sec": 15.21,
+      "sample_rate_hz": 16000,
+      "transcript": "With her white paint and her scarlet smoke stack, the inverse shield, one of the two small steamers that during the summer months, applied up and down the lock, and incidentally carried down communication between inverse shield and cryon.",
+      "transcript_differs_from_reference": false,
+      "transcript_difference_note": "",
+      "delivery_condition": "flawed",
+      "data_origin": "transformed_real",
+      "flaw_category": "filler_words",
+      "severity": "near_reference",
+      "severity_rank": 1,
+      "flaw_intervals": [
+        {
+          "start": 4.69,
+          "end": 4.94,
+          "label": "synthetic_filler_uh",
+          "detail": "0.25 s formant-synthesised 'uh' at 83 Hz inserted at 4.63 s of the reference"
+        }
+      ],
+      "generation": {
+        "method": "insert_synthetic_filled_pause",
+        "parameters": {
+          "filler_sec": 0.25,
+          "requested_count": 1,
+          "inserted_count": 1,
+          "f0_hz": 83.1
+        },
+        "tool": "numpy, scipy (formant synthesis)"
+      },
+      "annotation": {
+        "label_provenance": "generated_by_construction",
+        "label_support": "proxy",
+        "annotator": null,
+        "notes": "PROXY LABEL, SYNTHETIC SOUND. A formant-synthesised 'uh' or 'um' at the speaker's own pitch was inserted into the real recording; no person said it. The intervals are exact. The transcript does not include the fillers, as a script would not."
+      },
+      "measured": {
+        "provenance": "automatic_estimate",
+        "tool": "speakiq-ai-coach backend 0.1.0",
+        "pitch_median_hz": 77.4,
+        "pitch_range_semitones": 9.74,
+        "total_silence_sec": 1.75,
+        "internal_pause_count": 3,
+        "syllable_rate_estimate_per_sec": 2.7,
+        "spectral_centroid_hz": 946.2,
+        "peak_amplitude": 0.8029,
+        "support_check": {
+          "metric": "none",
+          "reference_value": null,
+          "sample_value": null,
+          "expectation": "no independent automatic check is implemented for this category",
+          "supported": null
+        }
+      },
+      "split": "train"
+    },
+    {
+      "sample_id": "librispeech-5703-47212-0000__filler_words__mild",
+      "pair_id": "pair-librispeech-5703-47212-0000",
+      "source_id": "librispeech-5703-47212-0000",
+      "speaker_id": "librispeech-speaker-5703",
+      "audio_path": "audio/pair-librispeech-5703-47212-0000/librispeech-5703-47212-0000__filler_words__mild.flac",
+      "reference_audio_path": "audio/pair-librispeech-5703-47212-0000/librispeech-5703-47212-0000__reference.flac",
+      "sha256": "fe52f27f7699ff1a72a132ac91f1c623ac5073d64fec9964050102b052946c7c",
+      "duration_sec": 15.36,
+      "sample_rate_hz": 16000,
+      "transcript": "With her white paint and her scarlet smoke stack, the inverse shield, one of the two small steamers that during the summer months, applied up and down the lock, and incidentally carried down communication between inverse shield and cryon.",
+      "transcript_differs_from_reference": false,
+      "transcript_difference_note": "",
+      "delivery_condition": "flawed",
+      "data_origin": "transformed_real",
+      "flaw_category": "filler_words",
+      "severity": "mild",
+      "severity_rank": 2,
+      "flaw_intervals": [
+        {
+          "start": 4.69,
+          "end": 5.09,
+          "label": "synthetic_filler_uh",
+          "detail": "0.40 s formant-synthesised 'uh' at 83 Hz inserted at 4.63 s of the reference"
+        }
+      ],
+      "generation": {
+        "method": "insert_synthetic_filled_pause",
+        "parameters": {
+          "filler_sec": 0.4,
+          "requested_count": 1,
+          "inserted_count": 1,
+          "f0_hz": 83.1
+        },
+        "tool": "numpy, scipy (formant synthesis)"
+      },
+      "annotation": {
+        "label_provenance": "generated_by_construction",
+        "label_support": "proxy",
+        "annotator": null,
+        "notes": "PROXY LABEL, SYNTHETIC SOUND. A formant-synthesised 'uh' or 'um' at the speaker's own pitch was inserted into the real recording; no person said it. The intervals are exact. The transcript does not include the fillers, as a script would not."
+      },
+      "measured": {
+        "provenance": "automatic_estimate",
+        "tool": "speakiq-ai-coach backend 0.1.0",
+        "pitch_median_hz": 77.7,
+        "pitch_range_semitones": 9.68,
+        "total_silence_sec": 1.75,
+        "internal_pause_count": 3,
+        "syllable_rate_estimate_per_sec": 2.67,
+        "spectral_centroid_hz": 937.7,
+        "peak_amplitude": 0.8029,
+        "support_check": {
+          "metric": "none",
+          "reference_value": null,
+          "sample_value": null,
+          "expectation": "no independent automatic check is implemented for this category",
+          "supported": null
+        }
+      },
+      "split": "train"
+    },
+    {
+      "sample_id": "librispeech-5703-47212-0000__filler_words__moderate",
+      "pair_id": "pair-librispeech-5703-47212-0000",
+      "source_id": "librispeech-5703-47212-0000",
+      "speaker_id": "librispeech-speaker-5703",
+      "audio_path": "audio/pair-librispeech-5703-47212-0000/librispeech-5703-47212-0000__filler_words__moderate.flac",
+      "reference_audio_path": "audio/pair-librispeech-5703-47212-0000/librispeech-5703-47212-0000__reference.flac",
+      "sha256": "93acb07bfc100c2e529506559c20073ee2069ac33f72ead829fedf862b09bcee",
+      "duration_sec": 15.98,
+      "sample_rate_hz": 16000,
+      "transcript": "With her white paint and her scarlet smoke stack, the inverse shield, one of the two small steamers that during the summer months, applied up and down the lock, and incidentally carried down communication between inverse shield and cryon.",
+      "transcript_differs_from_reference": false,
+      "transcript_difference_note": "",
+      "delivery_condition": "flawed",
+      "data_origin": "transformed_real",
+      "flaw_category": "filler_words",
+      "severity": "moderate",
+      "severity_rank": 3,
+      "flaw_intervals": [
+        {
+          "start": 4.69,
+          "end": 5.14,
+          "label": "synthetic_filler_uh",
+          "detail": "0.45 s formant-synthesised 'uh' at 83 Hz inserted at 4.63 s of the reference"
+        },
+        {
+          "start": 10.59,
+          "end": 11.04,
+          "label": "synthetic_filler_um",
+          "detail": "0.45 s formant-synthesised 'um' at 83 Hz inserted at 9.96 s of the reference"
+        }
+      ],
+      "generation": {
+        "method": "insert_synthetic_filled_pause",
+        "parameters": {
+          "filler_sec": 0.45,
+          "requested_count": 2,
+          "inserted_count": 2,
+          "f0_hz": 83.1
+        },
+        "tool": "numpy, scipy (formant synthesis)"
+      },
+      "annotation": {
+        "label_provenance": "generated_by_construction",
+        "label_support": "proxy",
+        "annotator": null,
+        "notes": "PROXY LABEL, SYNTHETIC SOUND. A formant-synthesised 'uh' or 'um' at the speaker's own pitch was inserted into the real recording; no person said it. The intervals are exact. The transcript does not include the fillers, as a script would not."
+      },
+      "measured": {
+        "provenance": "automatic_estimate",
+        "tool": "speakiq-ai-coach backend 0.1.0",
+        "pitch_median_hz": 78.4,
+        "pitch_range_semitones": 9.45,
+        "total_silence_sec": 1.88,
+        "internal_pause_count": 4,
+        "syllable_rate_estimate_per_sec": 2.63,
+        "spectral_centroid_hz": 911.1,
+        "peak_amplitude": 0.8029,
+        "support_check": {
+          "metric": "none",
+          "reference_value": null,
+          "sample_value": null,
+          "expectation": "no independent automatic check is implemented for this category",
+          "supported": null
+        }
+      },
+      "split": "train"
+    },
+    {
+      "sample_id": "librispeech-5703-47212-0000__filler_words__severe",
+      "pair_id": "pair-librispeech-5703-47212-0000",
+      "source_id": "librispeech-5703-47212-0000",
+      "speaker_id": "librispeech-speaker-5703",
+      "audio_path": "audio/pair-librispeech-5703-47212-0000/librispeech-5703-47212-0000__filler_words__severe.flac",
+      "reference_audio_path": "audio/pair-librispeech-5703-47212-0000/librispeech-5703-47212-0000__reference.flac",
+      "sha256": "e855767e14622e13e097199fadb50daeac205bc77422af8e0844b85d3bd4619b",
+      "duration_sec": 17.32,
+      "sample_rate_hz": 16000,
+      "transcript": "With her white paint and her scarlet smoke stack, the inverse shield, one of the two small steamers that during the summer months, applied up and down the lock, and incidentally carried down communication between inverse shield and cryon.",
+      "transcript_differs_from_reference": false,
+      "transcript_difference_note": "",
+      "delivery_condition": "flawed",
+      "data_origin": "transformed_real",
+      "flaw_category": "filler_words",
+      "severity": "severe",
+      "severity_rank": 4,
+      "flaw_intervals": [
+        {
+          "start": 3.09,
+          "end": 3.59,
+          "label": "synthetic_filler_uh",
+          "detail": "0.50 s formant-synthesised 'uh' at 83 Hz inserted at 3.03 s of the reference"
+        },
+        {
+          "start": 5.31,
+          "end": 5.81,
+          "label": "synthetic_filler_um",
+          "detail": "0.50 s formant-synthesised 'um' at 83 Hz inserted at 4.63 s of the reference"
+        },
+        {
+          "start": 9.5,
+          "end": 10.0,
+          "label": "synthetic_filler_uh",
+          "detail": "0.50 s formant-synthesised 'uh' at 83 Hz inserted at 8.20 s of the reference"
+        },
+        {
+          "start": 11.88,
+          "end": 12.38,
+          "label": "synthetic_filler_um",
+          "detail": "0.50 s formant-synthesised 'um' at 83 Hz inserted at 9.96 s of the reference"
+        }
+      ],
+      "generation": {
+        "method": "insert_synthetic_filled_pause",
+        "parameters": {
+          "filler_sec": 0.5,
+          "requested_count": 4,
+          "inserted_count": 4,
+          "f0_hz": 83.1
+        },
+        "tool": "numpy, scipy (formant synthesis)"
+      },
+      "annotation": {
+        "label_provenance": "generated_by_construction",
+        "label_support": "proxy",
+        "annotator": null,
+        "notes": "PROXY LABEL, SYNTHETIC SOUND. A formant-synthesised 'uh' or 'um' at the speaker's own pitch was inserted into the real recording; no person said it. The intervals are exact. The transcript does not include the fillers, as a script would not."
+      },
+      "measured": {
+        "provenance": "automatic_estimate",
+        "tool": "speakiq-ai-coach backend 0.1.0",
+        "pitch_median_hz": 79.1,
+        "pitch_range_semitones": 9.06,
+        "total_silence_sec": 1.77,
+        "internal_pause_count": 4,
+        "syllable_rate_estimate_per_sec": 2.54,
+        "spectral_centroid_hz": 859.1,
+        "peak_amplitude": 0.8029,
+        "support_check": {
+          "metric": "none",
+          "reference_value": null,
+          "sample_value": null,
+          "expectation": "no independent automatic check is implemented for this category",
+          "supported": null
         }
       },
       "split": "train"
@@ -3026,6 +3297,278 @@
       "split": "validation"
     },
     {
+      "sample_id": "librispeech-3436-172162-0000__filler_words__near_reference",
+      "pair_id": "pair-librispeech-3436-172162-0000",
+      "source_id": "librispeech-3436-172162-0000",
+      "speaker_id": "librispeech-speaker-3436",
+      "audio_path": "audio/pair-librispeech-3436-172162-0000/librispeech-3436-172162-0000__filler_words__near_reference.flac",
+      "reference_audio_path": "audio/pair-librispeech-3436-172162-0000/librispeech-3436-172162-0000__reference.flac",
+      "sha256": "47453397648a06896e9c44ee7dadcec4eabf19055eaa2dcc4796fa008939db1f",
+      "duration_sec": 17.115,
+      "sample_rate_hz": 16000,
+      "transcript": "the adventure of the cart. It befell in the month of May. Queen Gweniver called to her nights of the table-round and gave them warning that early upon the morrow she would ride a maying into the woods and fields beside Westminster.",
+      "transcript_differs_from_reference": false,
+      "transcript_difference_note": "",
+      "delivery_condition": "flawed",
+      "data_origin": "transformed_real",
+      "flaw_category": "filler_words",
+      "severity": "near_reference",
+      "severity_rank": 1,
+      "flaw_intervals": [
+        {
+          "start": 12.06,
+          "end": 12.31,
+          "label": "synthetic_filler_uh",
+          "detail": "0.25 s formant-synthesised 'uh' at 141 Hz inserted at 12.00 s of the reference"
+        }
+      ],
+      "generation": {
+        "method": "insert_synthetic_filled_pause",
+        "parameters": {
+          "filler_sec": 0.25,
+          "requested_count": 1,
+          "inserted_count": 1,
+          "f0_hz": 141.0
+        },
+        "tool": "numpy, scipy (formant synthesis)"
+      },
+      "annotation": {
+        "label_provenance": "generated_by_construction",
+        "label_support": "proxy",
+        "annotator": null,
+        "notes": "PROXY LABEL, SYNTHETIC SOUND. A formant-synthesised 'uh' or 'um' at the speaker's own pitch was inserted into the real recording; no person said it. The intervals are exact. The transcript does not include the fillers, as a script would not."
+      },
+      "measured": {
+        "provenance": "automatic_estimate",
+        "tool": "speakiq-ai-coach backend 0.1.0",
+        "pitch_median_hz": 140.3,
+        "pitch_range_semitones": 9.33,
+        "total_silence_sec": 2.925,
+        "internal_pause_count": 4,
+        "syllable_rate_estimate_per_sec": 2.92,
+        "spectral_centroid_hz": 1132.6,
+        "peak_amplitude": 0.5311,
+        "support_check": {
+          "metric": "none",
+          "reference_value": null,
+          "sample_value": null,
+          "expectation": "no independent automatic check is implemented for this category",
+          "supported": null
+        }
+      },
+      "split": "validation"
+    },
+    {
+      "sample_id": "librispeech-3436-172162-0000__filler_words__mild",
+      "pair_id": "pair-librispeech-3436-172162-0000",
+      "source_id": "librispeech-3436-172162-0000",
+      "speaker_id": "librispeech-speaker-3436",
+      "audio_path": "audio/pair-librispeech-3436-172162-0000/librispeech-3436-172162-0000__filler_words__mild.flac",
+      "reference_audio_path": "audio/pair-librispeech-3436-172162-0000/librispeech-3436-172162-0000__reference.flac",
+      "sha256": "51152951cb6fc8d63d78066f017ce65061bba3752a8ccc9a38ca402700237019",
+      "duration_sec": 17.265,
+      "sample_rate_hz": 16000,
+      "transcript": "the adventure of the cart. It befell in the month of May. Queen Gweniver called to her nights of the table-round and gave them warning that early upon the morrow she would ride a maying into the woods and fields beside Westminster.",
+      "transcript_differs_from_reference": false,
+      "transcript_difference_note": "",
+      "delivery_condition": "flawed",
+      "data_origin": "transformed_real",
+      "flaw_category": "filler_words",
+      "severity": "mild",
+      "severity_rank": 2,
+      "flaw_intervals": [
+        {
+          "start": 12.06,
+          "end": 12.46,
+          "label": "synthetic_filler_uh",
+          "detail": "0.40 s formant-synthesised 'uh' at 141 Hz inserted at 12.00 s of the reference"
+        }
+      ],
+      "generation": {
+        "method": "insert_synthetic_filled_pause",
+        "parameters": {
+          "filler_sec": 0.4,
+          "requested_count": 1,
+          "inserted_count": 1,
+          "f0_hz": 141.0
+        },
+        "tool": "numpy, scipy (formant synthesis)"
+      },
+      "annotation": {
+        "label_provenance": "generated_by_construction",
+        "label_support": "proxy",
+        "annotator": null,
+        "notes": "PROXY LABEL, SYNTHETIC SOUND. A formant-synthesised 'uh' or 'um' at the speaker's own pitch was inserted into the real recording; no person said it. The intervals are exact. The transcript does not include the fillers, as a script would not."
+      },
+      "measured": {
+        "provenance": "automatic_estimate",
+        "tool": "speakiq-ai-coach backend 0.1.0",
+        "pitch_median_hz": 139.9,
+        "pitch_range_semitones": 9.32,
+        "total_silence_sec": 2.925,
+        "internal_pause_count": 4,
+        "syllable_rate_estimate_per_sec": 2.9,
+        "spectral_centroid_hz": 1123.6,
+        "peak_amplitude": 0.5311,
+        "support_check": {
+          "metric": "none",
+          "reference_value": null,
+          "sample_value": null,
+          "expectation": "no independent automatic check is implemented for this category",
+          "supported": null
+        }
+      },
+      "split": "validation"
+    },
+    {
+      "sample_id": "librispeech-3436-172162-0000__filler_words__moderate",
+      "pair_id": "pair-librispeech-3436-172162-0000",
+      "source_id": "librispeech-3436-172162-0000",
+      "speaker_id": "librispeech-speaker-3436",
+      "audio_path": "audio/pair-librispeech-3436-172162-0000/librispeech-3436-172162-0000__filler_words__moderate.flac",
+      "reference_audio_path": "audio/pair-librispeech-3436-172162-0000/librispeech-3436-172162-0000__reference.flac",
+      "sha256": "28174b2e003a1033657b9d0cd18640667696ccde903b58aa83cfd61bd1030462",
+      "duration_sec": 17.885,
+      "sample_rate_hz": 16000,
+      "transcript": "the adventure of the cart. It befell in the month of May. Queen Gweniver called to her nights of the table-round and gave them warning that early upon the morrow she would ride a maying into the woods and fields beside Westminster.",
+      "transcript_differs_from_reference": false,
+      "transcript_difference_note": "",
+      "delivery_condition": "flawed",
+      "data_origin": "transformed_real",
+      "flaw_category": "filler_words",
+      "severity": "moderate",
+      "severity_rank": 3,
+      "flaw_intervals": [
+        {
+          "start": 5.36,
+          "end": 5.81,
+          "label": "synthetic_filler_uh",
+          "detail": "0.45 s formant-synthesised 'uh' at 141 Hz inserted at 5.30 s of the reference"
+        },
+        {
+          "start": 12.63,
+          "end": 13.08,
+          "label": "synthetic_filler_um",
+          "detail": "0.45 s formant-synthesised 'um' at 141 Hz inserted at 12.00 s of the reference"
+        }
+      ],
+      "generation": {
+        "method": "insert_synthetic_filled_pause",
+        "parameters": {
+          "filler_sec": 0.45,
+          "requested_count": 2,
+          "inserted_count": 2,
+          "f0_hz": 141.0
+        },
+        "tool": "numpy, scipy (formant synthesis)"
+      },
+      "annotation": {
+        "label_provenance": "generated_by_construction",
+        "label_support": "proxy",
+        "annotator": null,
+        "notes": "PROXY LABEL, SYNTHETIC SOUND. A formant-synthesised 'uh' or 'um' at the speaker's own pitch was inserted into the real recording; no person said it. The intervals are exact. The transcript does not include the fillers, as a script would not."
+      },
+      "measured": {
+        "provenance": "automatic_estimate",
+        "tool": "speakiq-ai-coach backend 0.1.0",
+        "pitch_median_hz": 139.2,
+        "pitch_range_semitones": 9.28,
+        "total_silence_sec": 2.855,
+        "internal_pause_count": 4,
+        "syllable_rate_estimate_per_sec": 2.85,
+        "spectral_centroid_hz": 1093.7,
+        "peak_amplitude": 0.5311,
+        "support_check": {
+          "metric": "none",
+          "reference_value": null,
+          "sample_value": null,
+          "expectation": "no independent automatic check is implemented for this category",
+          "supported": null
+        }
+      },
+      "split": "validation"
+    },
+    {
+      "sample_id": "librispeech-3436-172162-0000__filler_words__severe",
+      "pair_id": "pair-librispeech-3436-172162-0000",
+      "source_id": "librispeech-3436-172162-0000",
+      "speaker_id": "librispeech-speaker-3436",
+      "audio_path": "audio/pair-librispeech-3436-172162-0000/librispeech-3436-172162-0000__filler_words__severe.flac",
+      "reference_audio_path": "audio/pair-librispeech-3436-172162-0000/librispeech-3436-172162-0000__reference.flac",
+      "sha256": "2eaf7fd217efe4c9a9cfa61bdd26dd936b55682869b87b44004c3af2542795fc",
+      "duration_sec": 19.225,
+      "sample_rate_hz": 16000,
+      "transcript": "the adventure of the cart. It befell in the month of May. Queen Gweniver called to her nights of the table-round and gave them warning that early upon the morrow she would ride a maying into the woods and fields beside Westminster.",
+      "transcript_differs_from_reference": false,
+      "transcript_difference_note": "",
+      "delivery_condition": "flawed",
+      "data_origin": "transformed_real",
+      "flaw_category": "filler_words",
+      "severity": "severe",
+      "severity_rank": 4,
+      "flaw_intervals": [
+        {
+          "start": 2.39,
+          "end": 2.89,
+          "label": "synthetic_filler_uh",
+          "detail": "0.50 s formant-synthesised 'uh' at 141 Hz inserted at 2.33 s of the reference"
+        },
+        {
+          "start": 5.98,
+          "end": 6.48,
+          "label": "synthetic_filler_um",
+          "detail": "0.50 s formant-synthesised 'um' at 141 Hz inserted at 5.30 s of the reference"
+        },
+        {
+          "start": 11.11,
+          "end": 11.61,
+          "label": "synthetic_filler_uh",
+          "detail": "0.50 s formant-synthesised 'uh' at 141 Hz inserted at 9.81 s of the reference"
+        },
+        {
+          "start": 13.92,
+          "end": 14.42,
+          "label": "synthetic_filler_um",
+          "detail": "0.50 s formant-synthesised 'um' at 141 Hz inserted at 12.00 s of the reference"
+        }
+      ],
+      "generation": {
+        "method": "insert_synthetic_filled_pause",
+        "parameters": {
+          "filler_sec": 0.5,
+          "requested_count": 4,
+          "inserted_count": 4,
+          "f0_hz": 141.0
+        },
+        "tool": "numpy, scipy (formant synthesis)"
+      },
+      "annotation": {
+        "label_provenance": "generated_by_construction",
+        "label_support": "proxy",
+        "annotator": null,
+        "notes": "PROXY LABEL, SYNTHETIC SOUND. A formant-synthesised 'uh' or 'um' at the speaker's own pitch was inserted into the real recording; no person said it. The intervals are exact. The transcript does not include the fillers, as a script would not."
+      },
+      "measured": {
+        "provenance": "automatic_estimate",
+        "tool": "speakiq-ai-coach backend 0.1.0",
+        "pitch_median_hz": 138.4,
+        "pitch_range_semitones": 9.14,
+        "total_silence_sec": 2.955,
+        "internal_pause_count": 5,
+        "syllable_rate_estimate_per_sec": 2.76,
+        "spectral_centroid_hz": 1037.6,
+        "peak_amplitude": 0.5311,
+        "support_check": {
+          "metric": "none",
+          "reference_value": null,
+          "sample_value": null,
+          "expectation": "no independent automatic check is implemented for this category",
+          "supported": null
+        }
+      },
+      "split": "validation"
+    },
+    {
       "sample_id": "librispeech-3436-172162-0000__unclear_articulation__near_reference",
       "pair_id": "pair-librispeech-3436-172162-0000",
       "source_id": "librispeech-3436-172162-0000",
@@ -4594,6 +5137,278 @@
           "sample_value": 2.12,
           "expectation": "measured pitch range is narrower than the reference",
           "supported": true
+        }
+      },
+      "split": "test"
+    },
+    {
+      "sample_id": "librispeech-198-209-0000__filler_words__near_reference",
+      "pair_id": "pair-librispeech-198-209-0000",
+      "source_id": "librispeech-198-209-0000",
+      "speaker_id": "librispeech-speaker-198",
+      "audio_path": "audio/pair-librispeech-198-209-0000/librispeech-198-209-0000__filler_words__near_reference.flac",
+      "reference_audio_path": "audio/pair-librispeech-198-209-0000/librispeech-198-209-0000__reference.flac",
+      "sha256": "4954fbe9396870bb299d3ab0e76ebca84c7572fef75e2d516d6c2f66d4f13357",
+      "duration_sec": 14.2801,
+      "sample_rate_hz": 16000,
+      "transcript": "Mrs. Allen, said Chatherin the next morning, Will there be any harm in my calling on Miss Tilney today? I shall not be easy to lie have explained everything. Go by all means, my dear, only put on a white gown. Miss Tilney always wears white.",
+      "transcript_differs_from_reference": false,
+      "transcript_difference_note": "",
+      "delivery_condition": "flawed",
+      "data_origin": "transformed_real",
+      "flaw_category": "filler_words",
+      "severity": "near_reference",
+      "severity_rank": 1,
+      "flaw_intervals": [
+        {
+          "start": 2.83,
+          "end": 3.08,
+          "label": "synthetic_filler_uh",
+          "detail": "0.25 s formant-synthesised 'uh' at 210 Hz inserted at 2.77 s of the reference"
+        }
+      ],
+      "generation": {
+        "method": "insert_synthetic_filled_pause",
+        "parameters": {
+          "filler_sec": 0.25,
+          "requested_count": 1,
+          "inserted_count": 1,
+          "f0_hz": 210.0
+        },
+        "tool": "numpy, scipy (formant synthesis)"
+      },
+      "annotation": {
+        "label_provenance": "generated_by_construction",
+        "label_support": "proxy",
+        "annotator": null,
+        "notes": "PROXY LABEL, SYNTHETIC SOUND. A formant-synthesised 'uh' or 'um' at the speaker's own pitch was inserted into the real recording; no person said it. The intervals are exact. The transcript does not include the fillers, as a script would not."
+      },
+      "measured": {
+        "provenance": "automatic_estimate",
+        "tool": "speakiq-ai-coach backend 0.1.0",
+        "pitch_median_hz": 209.6,
+        "pitch_range_semitones": 13.48,
+        "total_silence_sec": 2.05,
+        "internal_pause_count": 3,
+        "syllable_rate_estimate_per_sec": 3.15,
+        "spectral_centroid_hz": 1800.2,
+        "peak_amplitude": 0.4223,
+        "support_check": {
+          "metric": "none",
+          "reference_value": null,
+          "sample_value": null,
+          "expectation": "no independent automatic check is implemented for this category",
+          "supported": null
+        }
+      },
+      "split": "test"
+    },
+    {
+      "sample_id": "librispeech-198-209-0000__filler_words__mild",
+      "pair_id": "pair-librispeech-198-209-0000",
+      "source_id": "librispeech-198-209-0000",
+      "speaker_id": "librispeech-speaker-198",
+      "audio_path": "audio/pair-librispeech-198-209-0000/librispeech-198-209-0000__filler_words__mild.flac",
+      "reference_audio_path": "audio/pair-librispeech-198-209-0000/librispeech-198-209-0000__reference.flac",
+      "sha256": "061530dea9b022cc8694ac5e8072d0437d0c0ae730e6f95b26d986f4346a77fc",
+      "duration_sec": 14.4301,
+      "sample_rate_hz": 16000,
+      "transcript": "Mrs. Allen, said Chatherin the next morning, Will there be any harm in my calling on Miss Tilney today? I shall not be easy to lie have explained everything. Go by all means, my dear, only put on a white gown. Miss Tilney always wears white.",
+      "transcript_differs_from_reference": false,
+      "transcript_difference_note": "",
+      "delivery_condition": "flawed",
+      "data_origin": "transformed_real",
+      "flaw_category": "filler_words",
+      "severity": "mild",
+      "severity_rank": 2,
+      "flaw_intervals": [
+        {
+          "start": 2.83,
+          "end": 3.23,
+          "label": "synthetic_filler_uh",
+          "detail": "0.40 s formant-synthesised 'uh' at 210 Hz inserted at 2.77 s of the reference"
+        }
+      ],
+      "generation": {
+        "method": "insert_synthetic_filled_pause",
+        "parameters": {
+          "filler_sec": 0.4,
+          "requested_count": 1,
+          "inserted_count": 1,
+          "f0_hz": 210.0
+        },
+        "tool": "numpy, scipy (formant synthesis)"
+      },
+      "annotation": {
+        "label_provenance": "generated_by_construction",
+        "label_support": "proxy",
+        "annotator": null,
+        "notes": "PROXY LABEL, SYNTHETIC SOUND. A formant-synthesised 'uh' or 'um' at the speaker's own pitch was inserted into the real recording; no person said it. The intervals are exact. The transcript does not include the fillers, as a script would not."
+      },
+      "measured": {
+        "provenance": "automatic_estimate",
+        "tool": "speakiq-ai-coach backend 0.1.0",
+        "pitch_median_hz": 208.7,
+        "pitch_range_semitones": 13.48,
+        "total_silence_sec": 2.05,
+        "internal_pause_count": 3,
+        "syllable_rate_estimate_per_sec": 3.12,
+        "spectral_centroid_hz": 1781.4,
+        "peak_amplitude": 0.4223,
+        "support_check": {
+          "metric": "none",
+          "reference_value": null,
+          "sample_value": null,
+          "expectation": "no independent automatic check is implemented for this category",
+          "supported": null
+        }
+      },
+      "split": "test"
+    },
+    {
+      "sample_id": "librispeech-198-209-0000__filler_words__moderate",
+      "pair_id": "pair-librispeech-198-209-0000",
+      "source_id": "librispeech-198-209-0000",
+      "speaker_id": "librispeech-speaker-198",
+      "audio_path": "audio/pair-librispeech-198-209-0000/librispeech-198-209-0000__filler_words__moderate.flac",
+      "reference_audio_path": "audio/pair-librispeech-198-209-0000/librispeech-198-209-0000__reference.flac",
+      "sha256": "35155ed79c218aa4635724f60bd6644674952ce2ec46cdbf6c8f403229c0d2a2",
+      "duration_sec": 15.0501,
+      "sample_rate_hz": 16000,
+      "transcript": "Mrs. Allen, said Chatherin the next morning, Will there be any harm in my calling on Miss Tilney today? I shall not be easy to lie have explained everything. Go by all means, my dear, only put on a white gown. Miss Tilney always wears white.",
+      "transcript_differs_from_reference": false,
+      "transcript_difference_note": "",
+      "delivery_condition": "flawed",
+      "data_origin": "transformed_real",
+      "flaw_category": "filler_words",
+      "severity": "moderate",
+      "severity_rank": 3,
+      "flaw_intervals": [
+        {
+          "start": 2.83,
+          "end": 3.28,
+          "label": "synthetic_filler_uh",
+          "detail": "0.45 s formant-synthesised 'uh' at 210 Hz inserted at 2.77 s of the reference"
+        },
+        {
+          "start": 9.31,
+          "end": 9.76,
+          "label": "synthetic_filler_um",
+          "detail": "0.45 s formant-synthesised 'um' at 210 Hz inserted at 8.68 s of the reference"
+        }
+      ],
+      "generation": {
+        "method": "insert_synthetic_filled_pause",
+        "parameters": {
+          "filler_sec": 0.45,
+          "requested_count": 2,
+          "inserted_count": 2,
+          "f0_hz": 210.0
+        },
+        "tool": "numpy, scipy (formant synthesis)"
+      },
+      "annotation": {
+        "label_provenance": "generated_by_construction",
+        "label_support": "proxy",
+        "annotator": null,
+        "notes": "PROXY LABEL, SYNTHETIC SOUND. A formant-synthesised 'uh' or 'um' at the speaker's own pitch was inserted into the real recording; no person said it. The intervals are exact. The transcript does not include the fillers, as a script would not."
+      },
+      "measured": {
+        "provenance": "automatic_estimate",
+        "tool": "speakiq-ai-coach backend 0.1.0",
+        "pitch_median_hz": 206.4,
+        "pitch_range_semitones": 13.41,
+        "total_silence_sec": 2.18,
+        "internal_pause_count": 4,
+        "syllable_rate_estimate_per_sec": 3.06,
+        "spectral_centroid_hz": 1721.4,
+        "peak_amplitude": 0.4223,
+        "support_check": {
+          "metric": "none",
+          "reference_value": null,
+          "sample_value": null,
+          "expectation": "no independent automatic check is implemented for this category",
+          "supported": null
+        }
+      },
+      "split": "test"
+    },
+    {
+      "sample_id": "librispeech-198-209-0000__filler_words__severe",
+      "pair_id": "pair-librispeech-198-209-0000",
+      "source_id": "librispeech-198-209-0000",
+      "speaker_id": "librispeech-speaker-198",
+      "audio_path": "audio/pair-librispeech-198-209-0000/librispeech-198-209-0000__filler_words__severe.flac",
+      "reference_audio_path": "audio/pair-librispeech-198-209-0000/librispeech-198-209-0000__reference.flac",
+      "sha256": "98676ea0937eda36b52822ec9d648c3505f71edfa3a70a52cdae82d8810c1b2c",
+      "duration_sec": 16.3901,
+      "sample_rate_hz": 16000,
+      "transcript": "Mrs. Allen, said Chatherin the next morning, Will there be any harm in my calling on Miss Tilney today? I shall not be easy to lie have explained everything. Go by all means, my dear, only put on a white gown. Miss Tilney always wears white.",
+      "transcript_differs_from_reference": false,
+      "transcript_difference_note": "",
+      "delivery_condition": "flawed",
+      "data_origin": "transformed_real",
+      "flaw_category": "filler_words",
+      "severity": "severe",
+      "severity_rank": 4,
+      "flaw_intervals": [
+        {
+          "start": 2.83,
+          "end": 3.33,
+          "label": "synthetic_filler_uh",
+          "detail": "0.50 s formant-synthesised 'uh' at 210 Hz inserted at 2.77 s of the reference"
+        },
+        {
+          "start": 6.3,
+          "end": 6.8,
+          "label": "synthetic_filler_um",
+          "detail": "0.50 s formant-synthesised 'um' at 210 Hz inserted at 5.62 s of the reference"
+        },
+        {
+          "start": 9.98,
+          "end": 10.48,
+          "label": "synthetic_filler_uh",
+          "detail": "0.50 s formant-synthesised 'uh' at 210 Hz inserted at 8.68 s of the reference"
+        },
+        {
+          "start": 13.77,
+          "end": 14.27,
+          "label": "synthetic_filler_um",
+          "detail": "0.50 s formant-synthesised 'um' at 210 Hz inserted at 11.85 s of the reference"
+        }
+      ],
+      "generation": {
+        "method": "insert_synthetic_filled_pause",
+        "parameters": {
+          "filler_sec": 0.5,
+          "requested_count": 4,
+          "inserted_count": 4,
+          "f0_hz": 210.0
+        },
+        "tool": "numpy, scipy (formant synthesis)"
+      },
+      "annotation": {
+        "label_provenance": "generated_by_construction",
+        "label_support": "proxy",
+        "annotator": null,
+        "notes": "PROXY LABEL, SYNTHETIC SOUND. A formant-synthesised 'uh' or 'um' at the speaker's own pitch was inserted into the real recording; no person said it. The intervals are exact. The transcript does not include the fillers, as a script would not."
+      },
+      "measured": {
+        "provenance": "automatic_estimate",
+        "tool": "speakiq-ai-coach backend 0.1.0",
+        "pitch_median_hz": 205.3,
+        "pitch_range_semitones": 13.05,
+        "total_silence_sec": 1.78,
+        "internal_pause_count": 3,
+        "syllable_rate_estimate_per_sec": 2.93,
+        "spectral_centroid_hz": 1610.6,
+        "peak_amplitude": 0.4223,
+        "support_check": {
+          "metric": "none",
+          "reference_value": null,
+          "sample_value": null,
+          "expectation": "no independent automatic check is implemented for this category",
+          "supported": null
         }
       },
       "split": "test"
