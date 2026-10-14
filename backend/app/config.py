@@ -51,6 +51,10 @@ class Settings:
     whisper_compute_type: str = field(default_factory=lambda: _env("WHISPER_COMPUTE_TYPE", "int8"))
     whisper_language: str | None = field(default_factory=lambda: _env("WHISPER_LANGUAGE"))
     whisper_download_root: str | None = field(default_factory=lambda: _env("WHISPER_DOWNLOAD_ROOT"))
+    # Text the recogniser treats as preceding speech. Off by default: on the project dataset a filler-laden
+    # prompt recognised more fillers but changed about 7% of other words and found fewer fillers overall
+    # once the acoustic check was added (see README).
+    whisper_initial_prompt: str | None = field(default_factory=lambda: _env("WHISPER_INITIAL_PROMPT"))
     # Optional storage of analysis results. The service-role key is a secret with full database access:
     # backend only, excluded from repr, never returned by the API, never in a VITE_ variable.
     supabase_url: str | None = field(default_factory=lambda: _env("SUPABASE_URL"))

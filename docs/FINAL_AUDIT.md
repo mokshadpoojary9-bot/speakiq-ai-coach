@@ -16,7 +16,7 @@ This audit checks the repository against `docs/PROJECT_SPEC.yaml`. Every result 
 | Full dataset, manifest and audio | `python -m app.dataset validate ../data/speakiq-contrastive-v1` | 0 errors, 0 warnings |
 | Committed example set | `python -m app.dataset validate ../data/examples` | 0 errors, 0 warnings |
 | Dataset rebuild reproduces committed manifests | `python -m app.dataset check` | passed during Prompt 8 and Prompt 9 verification |
-| Detection rules on the dataset (real `base` model) | `python -m app.detection.evaluate` | labelled flaw reported for 38 of 45 mild-to-severe samples; 5 findings of another category |
+| Detection rules on the dataset (real `base` model) | `python -m app.detection.evaluate` | labelled flaw reported for 45 of 54 mild-to-severe samples (38 of the 45 non-filler ones, unchanged); 12 findings of another category; 16 of 24 inserted synthetic fillers found (1 before the acoustic check) |
 | Transcript review status | `python -m app.dataset transcripts status` | all 3 sources `unverified` |
 
 Not run anywhere: deployment to Render or Vercel, a real Supabase project, Linux or macOS, and any test with listeners or natural flawed speech.
@@ -106,7 +106,7 @@ Not in the repository, and not produced by this work: a hosted demo, a published
 ## 4. Known limitations
 
 - Detection thresholds are project defaults checked on a small dataset of transformed recordings from three speakers; some were chosen on that same dataset. They have not been validated with listeners or natural speech.
-- Filler detection relies on the recogniser, which often omits fillers; counts are lower bounds and untested on natural hesitations.
+- Filler counts are still lower bounds. An acoustic check now finds fillers the recogniser leaves out (16 of 24 synthetic fillers in the dataset, against 1 before), but it is tested only on synthetic fillers, misses short or breathy ones, and can mistake a held vowel for a filler, so its findings are worded as possible.
 - Pitch variation cannot be judged for voices the tracker cannot follow stably, such as the dataset's low, creaky speaker; those findings are withheld.
 - Word timing comes from speech recognition, accurate to about a tenth of a second; misrecognised words drop out of comparisons.
 - Without a reference recording, pace and pauses are judged against general limits, and uneven pacing and pause placement are not judged at all.

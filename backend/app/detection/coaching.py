@@ -80,6 +80,10 @@ TEMPLATES: dict[str, tuple[str, str]] = {
         "Replace the filler sounds with a short silent pause.",
         "Rehearse the sentences around each marked filler, stopping silently where the filler was, then re-record and check whether they are still recognised.",
     ),
+    "filled_pause_acoustic:filler_word": (
+        "Listen to the marked moments, and replace any filler sounds with a short silent pause.",
+        "Play each marked moment; where you hear an \u201cuh\u201d or \u201cum\u201d, rehearse that sentence stopping silently instead, then re-record and check again.",
+    ),
     "pitch_range_vs_reference:pitch_monotony": (
         "Try varying your pitch more, if a livelier delivery suits the text.",
         "Pick the words you want to emphasise, raise or lower your pitch on them, then re-record and compare your pitch range with the reference.",
@@ -128,6 +132,10 @@ REASONS: dict[str, str] = {
         "The recogniser transcribed these hesitation sounds at these times. Only recognised fillers are counted, so "
         "there may be others."
     ),
+    "filled_pause_acoustic:filler_word": (
+        "A voiced sound with level pitch and an unchanging spectrum lasted at least the rule's minimum, mostly between "
+        "the recognised words. Filled pauses sound like this, but so can a drawn-out word, so this is worded as a possibility."
+    ),
     "pitch_range_vs_reference:pitch_monotony": (
         "Your measured pitch range over voiced speech, relative to your own voice, was at most the rule's fraction of "
         "the reference's range over the same words. This is worded as a possibility because pitch tracking makes errors."
@@ -139,7 +147,7 @@ REASONS: dict[str, str] = {
 }
 
 # Rules whose findings only ever claim a possibility, however clean the recording.
-POSSIBILITY_RULES = {"pitch_range_vs_reference", "pitch_range"}
+POSSIBILITY_RULES = {"pitch_range_vs_reference", "pitch_range", "filled_pause_acoustic"}
 
 MAX_QUOTED = 3
 

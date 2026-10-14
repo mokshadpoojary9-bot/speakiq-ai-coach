@@ -68,6 +68,13 @@ class DetectionSettings(BaseModel):
     filler_words: tuple[str, ...] = ("um", "umm", "uh", "uhh", "uhm", "er", "erm", "hmm", "mm", "mhm")
     # Below this recogniser probability a filler is reported as 'possible' with low evidence quality.
     filler_min_probability: float = Field(default=0.5, ge=0, le=1)
+    # Acoustic check for filled pauses the recogniser left out: a steady voiced sound (level pitch, unchanging
+    # spectrum) of at least this length, enough of which lies outside every recognised word. Word times are
+    # accurate to about 0.1 s, so the outside share must exceed that.
+    filled_pause_min_sec: float = Field(default=0.2, gt=0)
+    filled_pause_pitch_semitones: float = Field(default=1.0, gt=0)
+    filled_pause_centroid_spread: float = Field(default=0.2, gt=0)
+    filled_pause_min_outside_words_sec: float = Field(default=0.15, ge=0)
 
 
 class Span(BaseModel):

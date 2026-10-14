@@ -121,6 +121,7 @@ class FasterWhisperTranscriber:
                 word_timestamps=True,
                 beam_size=5,
                 condition_on_previous_text=False,
+                **({"initial_prompt": self._settings.whisper_initial_prompt} if self._settings.whisper_initial_prompt else {}),
             )
             raw_segments = list(segments_iter)  # decoding happens while iterating
         except Exception as error:

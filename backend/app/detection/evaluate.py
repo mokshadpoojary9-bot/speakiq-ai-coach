@@ -6,7 +6,7 @@ Run from backend/ after `python -m app.dataset build`:
 
 It needs the real transcription model, takes several minutes, and is not part of the test suite.
 `--cache` stores the per-recording analyses so the rules can be re-run instantly while the audio
-and model are unchanged. It reports counts only and never changes a threshold.
+and model are unchanged; samples missing from the cache are analysed and added. It reports counts only and never changes a threshold.
 
 Each flawed sample is analysed against its own reference recording, as `POST /api/analyze` does
 with a `reference` file and no transcripts. The table shows, for every flaw category and
@@ -38,11 +38,12 @@ EXPECTED = {
     "slow_delivery": {"slow_delivery"},
     "uneven_pacing": {"uneven_pacing"},
     "pitch_monotony": {"pitch_monotony"},
+    "filler_words": {"filler_word"},
     "unclear_articulation": set(),  # no rule exists for it, by design
 }
 
 
-def analyse_dataset(manifest: dict) -> dict[str, tuple[DeliveryAnalysis, DeliveryAnalysis]]:
+def analyse_dataset(manifest: dict, done: frozenset[str] = frozenset()) -> dict[str, tuple[DeliveryAnalysis, DeliveryAnalysis]]:
     settings = get_settings()
     transcriber = FasterWhisperTranscriber(settings)
     samples = {s["sample_id"]: s for s in manifest["samples"]}
@@ -57,9 +58,11 @@ def analyse_dataset(manifest: dict) -> dict[str, tuple[DeliveryAnalysis, Deliver
 
     analyses = {}
     for source in manifest["sources"]:
+        if all(s["sample_id"] in done for s in manifest["samples"] if s["source_id"] == source["source_id"]):
+            continue
         reference, text = analyse(samples[f"{source['source_id']}__reference"])
         for sample in manifest["samples"]:
-            if sample["source_id"] == source["source_id"]:
+            if sample["source_id"] == source["source_id"] and sample["sample_id"] not in done:
                 analyses[sample["sample_id"]] = (reference, reference if sample["severity"] == "none" else analyse(sample, text)[0])
     return analyses
 
@@ -71,11 +74,11 @@ def main(argv: list[str] | None = None) -> int:
 
     manifest = json.loads((DATASET / "manifest.json").read_text(encoding="utf-8"))
     samples = {s["sample_id"]: s for s in manifest["samples"]}
-    if args.cache and args.cache.exists():
-        analyses = pickle.loads(args.cache.read_bytes())
-    else:
+    cached = pickle.loads(args.cache.read_bytes()) if args.cache and args.cache.exists() else {}
+    analyses = {k: v for k, v in cached.items() if k in samples}
+    if analyses.keys() != samples.keys():
         try:
-            analyses = analyse_dataset(manifest)
+            analyses |= analyse_dataset(manifest, frozenset(analyses))
         except FileNotFoundError as error:
             print(f"Dataset audio not found ({error.filename}). Run `python -m app.dataset build` first.")
             return 1
@@ -90,6 +93,9 @@ def main(argv: list[str] | None = None) -> int:
     severities: dict[tuple[str, str], Counter] = defaultdict(Counter)
     withheld: Counter = Counter()
     hits = expected_total = false_alarms = 0
+    fillers_inserted = 0
+    fillers_found: Counter = Counter()  # inserted fillers overlapped by a finding, per rule
+    fillers_elsewhere: Counter = Counter()  # filler findings away from any inserted filler, per rule
     for sample_id, (reference, participant) in analyses.items():
         sample = samples[sample_id]
         label, level = sample["flaw_category"] or "reference", sample["severity"]
@@ -111,6 +117,15 @@ def main(argv: list[str] | None = None) -> int:
             expected_total += 1
             hits += bool(found & wanted)
         false_alarms += len(found - wanted)
+        inserted = [i for i in sample["flaw_intervals"] if i["label"].startswith("synthetic_filler")]
+        fillers_inserted += len(inserted)
+        filler_findings = [f for f in result.findings if f.category == "filler_word"]
+        near = lambda f, i: f.end > i["start"] - 0.1 and f.start < i["end"] + 0.1  # noqa: E731
+        for interval in inserted:
+            rules = {f.rule.rule_id for f in filler_findings if near(f, interval)}
+            fillers_found.update(rules)
+            fillers_found["either rule"] += bool(rules)
+        fillers_elsewhere.update(f.rule.rule_id for f in filler_findings if not any(near(f, i) for i in inserted))
 
     categories = ["rushed_delivery", "slow_delivery", "excessive_pause", "uneven_pacing", "pitch_monotony", "filler_word"]
     print(f"Dataset {manifest['dataset_name']} {manifest['dataset_version']}; each flawed sample analysed against its reference")
@@ -124,6 +139,9 @@ def main(argv: list[str] | None = None) -> int:
         print(f"{key[0]:22}{key[1]:16}{row['samples']:>3}" + "".join(f"{row[c]:>16}" for c in categories) + f"  {severity}")
     print(f"Mild, moderate and severe samples whose labelled flaw was reported: {hits} of {expected_total}")
     print(f"Findings of a category other than the sample's label (false alarms), all {len(analyses)} samples: {false_alarms}")
+    if fillers_inserted:
+        print(f"Inserted synthetic fillers found, of {fillers_inserted}: " + ", ".join(f"{rule} {n}" for rule, n in sorted(fillers_found.items())))
+        print("Filler findings away from any inserted filler: " + (", ".join(f"{rule} {n}" for rule, n in sorted(fillers_elsewhere.items())) or "none"))
     print("Rules withheld (count across samples):")
     for reason, count in withheld.most_common():
         print(f"  {count:>3}  {reason}")

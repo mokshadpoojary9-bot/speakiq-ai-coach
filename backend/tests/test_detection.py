@@ -321,7 +321,7 @@ def test_without_a_reference_only_reference_free_rules_run():
 
     assert result.alignment_status.status == "no_reference"
     assert result.alignment_status.transcript_source == "machine_generated"
-    assert {r.rule_id for r in result.rules if r.status != "withheld"} == {"pace_words_per_minute", "long_pause", "filler_lexicon", "pitch_range", "articulation"}
+    assert {r.rule_id for r in result.rules if r.status != "withheld"} == {"pace_words_per_minute", "long_pause", "filler_lexicon", "filled_pause_acoustic", "pitch_range", "articulation"}
     assert all(f.reference_interval is None for f in result.findings)
 
 
@@ -1007,3 +1007,83 @@ def test_extra_words_the_recogniser_heard_are_counted_and_not_treated_as_a_deliv
     assert status.unmatched_recognised == {"participant": 1, "reference": 0}
     assert status.words_compared == WORDS
     assert result.findings == []
+
+
+# --- Acoustic check for filled pauses the recogniser left out ---------------------------------
+
+
+def with_hum(seconds: float, *, glide_semitones: float = 0.0, after_word: int = 10, gap: float = 0.8):
+    """A take with a silent gap after `after_word`, and a steady voiced 'uh' placed in it that no recognised word covers."""
+    take = make_take(pauses={after_word: gap})
+    n = int(round(seconds * SR))
+    t = np.arange(n) / SR
+    f0 = 150 * 2 ** (glide_semitones * t / seconds / 12)
+    phase = 2 * np.pi * np.cumsum(f0) / SR
+    hum = sum(np.sin(k * phase) / k for k in range(1, 6)) * np.minimum(1, np.minimum(t, t[::-1]) / 0.03)
+    start = take.ends[after_word] + (gap - seconds) / 2
+    first = int(round(start * SR))
+    audio = take.audio.copy()
+    audio[first : first + n] += (0.25 * hum).astype(np.float32)
+    return take, audio, start
+
+
+def acoustic(result):
+    return [f for f in result.findings if f.rule.rule_id == "filled_pause_acoustic"]
+
+
+def test_a_steady_voiced_sound_between_recognised_words_is_a_possible_filled_pause():
+    take, audio, start = with_hum(0.45)
+
+    result = run_detection(analysis_of(take, audio=audio, source="transcribed"))
+
+    (finding,) = acoustic(result)
+    assert finding.category == "filler_word"
+    assert finding.title == "Possible filled pause"
+    assert finding.evidence_quality == "low" and finding.severity is None
+    assert finding.start == pytest.approx(start, abs=0.06)
+    assert finding.end == pytest.approx(start + 0.45, abs=0.06)
+    outside = next(e for e in finding.evidence if e.feature == "time_outside_recognised_words")
+    assert outside.participant_value >= 0.4
+    tip = next(t for t in build_coaching(result.findings) if t.id == "tip:filled_pause_acoustic:filler_word")
+    assert tip.certainty == "uncertain"
+
+
+@pytest.mark.parametrize(
+    "seconds, glide",
+    [(0.12, 0.0), (0.45, 12.0)],
+    ids=["too short", "pitch moves like speech"],
+)
+def test_short_or_moving_voiced_sounds_are_not_filled_pauses(seconds, glide):
+    take, audio, _ = with_hum(seconds, glide_semitones=glide)
+
+    assert acoustic(run_detection(analysis_of(take, audio=audio, source="transcribed"))) == []
+
+
+def test_steady_sounds_inside_recognised_words_are_not_filled_pauses():
+    take = make_take(rate=1.2)  # long, steady words: each is one held pitch
+
+    result = run_detection(analysis_of(take, source="transcribed"))
+
+    assert acoustic(result) == []
+    report = next(r for r in result.rules if r.rule_id == "filled_pause_acoustic")
+    assert report.status == "not_triggered"
+    assert "can still be missed" in report.reason
+
+
+def test_a_filler_the_recogniser_heard_is_not_counted_again_by_the_acoustic_check():
+    take, audio, start = with_hum(0.45)
+    analysis = analysis_of(take, audio=audio, source="transcribed")
+    words = analysis.transcription.words
+    words.insert(11, words[10].model_copy(update={"word": "uh", "start": round(start + 0.3, 3), "end": round(start + 0.42, 3)}))
+
+    fillers = [f for f in run_detection(analysis).findings if f.category == "filler_word"]
+
+    assert [f.rule.rule_id for f in fillers] == ["filler_lexicon"]
+
+
+def test_the_acoustic_check_is_withheld_without_word_timestamps():
+    analysis = analysis_of(make_take())
+    analysis.transcription = None
+
+    report = next(r for r in run_detection(analysis).rules if r.rule_id == "filled_pause_acoustic")
+    assert report.status == "withheld"

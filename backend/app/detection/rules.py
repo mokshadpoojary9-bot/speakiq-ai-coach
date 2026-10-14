@@ -795,6 +795,123 @@ def filler_words(participant: DeliveryAnalysis, quality: SignalQuality, settings
     )
 
 
+def steady_voiced_stretches(
+    f0: list[float | None], centroid: list[float | None], hop_sec: float, settings: DetectionSettings
+) -> list[tuple[int, int]]:
+    """Frame ranges [i, j) where every frame is voiced, with pitch and spectral centroid held close to the stretch's median."""
+    stretches: list[tuple[int, int]] = []
+    min_frames = max(2, int(np.ceil(settings.filled_pause_min_sec / hop_sec - 1e-9)))
+    i = 0
+    while i < len(f0):
+        if f0[i] is None or centroid[i] is None:
+            i += 1
+            continue
+        j = i + 1
+        while j < len(f0) and f0[j] is not None and centroid[j] is not None:
+            semitones = 12 * np.log2(np.array(f0[i : j + 1], dtype=float))
+            spectrum = np.array(centroid[i : j + 1], dtype=float)
+            if (
+                np.abs(semitones - np.median(semitones)).max() > settings.filled_pause_pitch_semitones
+                or np.abs(spectrum / np.median(spectrum) - 1).max() > settings.filled_pause_centroid_spread
+            ):
+                break
+            j += 1
+        if j - i >= min_frames:
+            stretches.append((i, j))
+            i = j
+        else:
+            i += 1
+    return stretches
+
+
+def _time_outside(start: float, end: float, spans: list[tuple[float, float]]) -> float:
+    covered = sum(max(0.0, min(end, e) - max(start, s)) for s, e in spans)
+    return max(0.0, (end - start) - covered)
+
+
+def filled_pauses(
+    participant: DeliveryAnalysis, lexical: list[Finding], quality: SignalQuality, settings: DetectionSettings
+) -> tuple[RuleReport, list[Finding]]:
+    """Possible filled pauses ('uh', 'um') the recogniser did not transcribe, found from the sound itself."""
+    rule_id, category = "filled_pause_acoustic", "filler_word"
+    thresholds = {
+        "min_duration_sec": settings.filled_pause_min_sec,
+        "max_pitch_deviation_semitones": settings.filled_pause_pitch_semitones,
+        "max_spectral_centroid_deviation": settings.filled_pause_centroid_spread,
+        "min_time_outside_recognised_words_sec": settings.filled_pause_min_outside_words_sec,
+    }
+    transcription = participant.transcription
+    pitch, centroid = participant.features.pitch.series, participant.features.spectral.centroid
+    if transcription is None or transcription.word_timestamps != "available":
+        return _withheld(rule_id, category, "Needs recognised words with timestamps, to tell sounds inside words from sounds between them."), []
+    if pitch is None or centroid is None:
+        return _withheld(rule_id, category, "Needs the pitch track and spectral centroid, which were not measured for this recording."), []
+
+    def centroid_at(k: int) -> float | None:
+        index = int(round((pitch.start_sec + k * pitch.hop_sec - centroid.start_sec) / centroid.hop_sec))
+        return centroid.values[index] if 0 <= index < len(centroid.values) else None
+
+    aligned = [centroid_at(k) for k in range(len(pitch.values))]
+    words = [(w.start, w.end) for w in transcription.words if w.end > w.start]
+    already = [(f.start, f.end) for f in lexical]
+    findings = []
+    for i, j in steady_voiced_stretches(pitch.values, aligned, pitch.hop_sec, settings):
+        start, end = round(pitch.start_sec + i * pitch.hop_sec, 3), round(pitch.start_sec + j * pitch.hop_sec, 3)
+        outside = _time_outside(start, end, words)
+        if outside < settings.filled_pause_min_outside_words_sec or any(end > s and start < e for s, e in already):
+            continue
+        semitones = 12 * np.log2(np.array(pitch.values[i:j], dtype=float))
+        spectrum = np.array(aligned[i:j], dtype=float)
+        findings.append(
+            Finding(
+                id=_finding_id(rule_id, start, end),
+                category=category,
+                title="Possible filled pause",
+                start=start,
+                end=end,
+                evidence=[
+                    _evidence("steady_voiced_duration", "s", end - start),
+                    _evidence("time_outside_recognised_words", "s", outside),
+                    _evidence("pitch_deviation", "semitones", float(np.abs(semitones - np.median(semitones)).max())),
+                    _evidence("spectral_centroid_deviation", "fraction", float(np.abs(spectrum / np.median(spectrum) - 1).max())),
+                ],
+                comparison_method="A voiced sound with level pitch and an unchanging spectrum, mostly between recognised words.",
+                rule=RuleUsed(
+                    rule_id=rule_id,
+                    description="Flag steady voiced sounds the recogniser did not transcribe as a word, as possible filled pauses.",
+                    thresholds=thresholds,
+                ),
+                evidence_quality="low",
+                explanation=(
+                    f"A steady voiced sound lasted {end - start:.2f} s here, {outside:.2f} s of it outside the recognised words. "
+                    "Filled pauses such as “uh” or “um” sound like this, but so can a drawn-out word or a sung note."
+                ),
+                limitations=[
+                    "Found from the sound alone, so it cannot tell a filler from a held vowel; listen to the marked moment.",
+                    "Checked only on synthetic fillers inserted into recordings, not on natural hesitations.",
+                    "Short or breathy fillers, and fillers the pitch tracker cannot follow, are not found.",
+                    *_quality_notes(category, quality),
+                ],
+            )
+        )
+    return (
+        RuleReport(
+            rule_id=rule_id,
+            category=category,
+            status="triggered" if findings else "not_triggered",
+            findings=len(findings),
+            measured={"possible_filled_pauses": len(findings)},
+            thresholds=thresholds,
+            reason=(
+                "Possible filled pauses found from the sound, outside the recognised words. Each needs listening to."
+                if findings
+                else "No steady voiced sounds were found between the recognised words. Short or breathy fillers can still be missed."
+            ),
+        ),
+        findings,
+    )
+
+
 def pitch_monotony(
     participant: DeliveryAnalysis,
     reference: DeliveryAnalysis | None,
@@ -931,7 +1048,8 @@ def run_detection(
         for rule_id, category in (
             ("pace", "rushed_delivery"), ("pace", "slow_delivery"), ("pause", "excessive_pause"),
             ("pause_placement_vs_reference", "irregular_pauses"),
-            ("filler_lexicon", "filler_word"), ("pacing_vs_reference", "uneven_pacing"), ("pitch_range", "pitch_monotony"),
+            ("filler_lexicon", "filler_word"), ("filled_pause_acoustic", "filler_word"),
+            ("pacing_vs_reference", "uneven_pacing"), ("pitch_range", "pitch_monotony"),
         ):  # fmt: skip
             reports.append(_withheld(rule_id, category, reason))
     else:
@@ -954,7 +1072,9 @@ def run_detection(
             )
             why = "Needs a reference recording: without one, pace changes cannot be told apart from longer and shorter words."
             reports.append(_withheld("pacing_vs_reference", "uneven_pacing", why if reference is None else f"The reference could not be used. {alignment.reason}"))
-        add(filler_words(participant, quality, settings))
+        lexical = filler_words(participant, quality, settings)
+        add(lexical)
+        add(filled_pauses(participant, lexical[1], quality, settings))
         add(pitch_monotony(participant, reference, alignment, quality, settings))
     reports.append(_withheld("articulation", "unclear_articulation", ARTICULATION_REASON, status="not_supported"))
 

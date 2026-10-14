@@ -241,3 +241,14 @@ def test_normalize():
     assert normalize("'quoted'") == "quoted"
     assert normalize("well-known") == "wellknown"
     assert normalize("—") == ""
+
+
+def test_an_initial_prompt_is_passed_only_when_configured():
+    plain, prompted = FakeModel([segment("hello", 0.1)]), FakeModel([segment("hello", 0.1)])
+
+    transcriber_with(plain).transcribe(AUDIO, SR)
+    transcriber_with(prompted, Settings(whisper_initial_prompt="Um, uh, like, you know.")).transcribe(AUDIO, SR)
+
+    assert "initial_prompt" not in plain.calls[0]
+    assert prompted.calls[0]["initial_prompt"] == "Um, uh, like, you know."
+    assert prompted.calls[0]["word_timestamps"] is True
