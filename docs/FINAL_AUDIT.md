@@ -95,7 +95,7 @@ Not run anywhere: deployment to Render or Vercel, a real Supabase project, Linux
 | Setup, usage, API and troubleshooting | `README.md`; interactive API docs at `/docs` when the backend runs |
 | Specification and milestone record | `docs/PROJECT_SPEC.yaml`, `docs/MILESTONE_5_2_ACCEPTANCE.md` |
 | Contrastive dataset, schema, validator and dataset card | `data/`, `backend/app/dataset/` |
-| Evaluation scripts | `python -m app.detection.evaluate`, `python -m app.comparison.evaluate` |
+| Evaluation scripts | `python -m app.detection.evaluate`, `python -m app.comparison.evaluate`, `python -m app.audio.evaluate_pitch` |
 | Deployment guide | `docs/DEPLOYMENT.md` |
 | Optional database schema | `docs/supabase/schema.sql` |
 | Dataset publishing guide | `data/HOSTING.md` |
@@ -107,7 +107,7 @@ Not in the repository, and not produced by this work: a hosted demo, a published
 
 - Detection thresholds are project defaults checked on a small dataset of transformed recordings from three speakers; some were chosen on that same dataset. They have not been validated with listeners or natural speech.
 - Filler counts are still lower bounds. An acoustic check now finds fillers the recogniser leaves out (16 of 24 synthetic fillers in the dataset, against 1 before), but it is tested only on synthetic fillers, misses short or breathy ones, and can mistake a held vowel for a filler, so its findings are worded as possible.
-- Pitch variation cannot be judged for voices the tracker cannot follow stably, such as the dataset's low, creaky speaker; those findings are withheld.
+- Pitch variation cannot be judged for voices the tracker cannot follow stably, such as the dataset's low, creaky speaker; those findings are withheld. Choosing the speaker's pitch range from the opening seconds was measured (`python -m app.audio.evaluate_pitch`) and did not recover that voice without losing others or adding false readings, so it was not adopted.
 - Word timing comes from speech recognition, accurate to about a tenth of a second; misrecognised words drop out of comparisons.
 - Without a reference recording, pace and pauses are judged against general limits, and uneven pacing and pause placement are not judged at all.
 - Dataset transcripts are unverified machine output until a person runs `python -m app.dataset transcripts review`; one source description is uncertain; the filler examples are synthetic sounds, not natural hesitations.

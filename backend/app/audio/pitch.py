@@ -8,6 +8,10 @@ which is what made low-pitched voices measure wildly different ranges from one t
 A third pass with the lower limit nudged upwards checks stability. A voice the tracker follows
 well gives the same answer; a creaky or very low voice near the limit of what can be tracked
 does not, and is then reported as low reliability rather than as a confident number.
+
+Choosing the range from only the opening seconds was tried and rejected: on the dataset it withheld
+more recordings (39 or 40 of 87 instead of 24) and, with 3 s, gave 3 false readings, because the
+opening seconds often miss notes the speaker reaches later. See `python -m app.audio.evaluate_pitch`.
 """
 
 from dataclasses import dataclass
